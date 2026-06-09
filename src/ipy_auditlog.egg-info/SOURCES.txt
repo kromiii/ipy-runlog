@@ -1,0 +1,11 @@
+LICENSE
+README.md
+pyproject.toml
+src/ipy_auditlog/__init__.py
+src/ipy_auditlog/extension.py
+src/ipy_auditlog/logger.py
+src/ipy_auditlog.egg-info/PKG-INFO
+src/ipy_auditlog.egg-info/SOURCES.txt
+src/ipy_auditlog.egg-info/dependency_links.txt
+src/ipy_auditlog.egg-info/requires.txt
+src/ipy_auditlog.egg-info/top_level.txt
