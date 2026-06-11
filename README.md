@@ -69,8 +69,8 @@ Cell outputs are not recorded by default. Enable them with `--with-output`:
 %runlog_start experiment-01 --with-output
 ```
 
-Use `--only-input` to record only cell input, without output or execution error
-details:
+Execution errors are recorded by default. Use `--only-input` to record only cell
+input, without output or execution error details:
 
 ```python
 %runlog_start experiment-01 --only-input
