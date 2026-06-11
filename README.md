@@ -9,10 +9,37 @@ IPython のイベントフックを使い、コードセルの実行履歴を JS
 pip install ipy-auditlog
 ```
 
+### uv を使用する場合
+
+#### プロジェクトの仮想環境にインストールする場合
+```bash
+uv pip install ipy-auditlog
+```
+または、`uv` プロジェクトに追加する場合:
+```bash
+uv add ipy-auditlog
+```
+
+#### `uv tool` を使用して IPython と一緒にインストール・実行する場合
+`ipy-auditlog` は IPython 拡張機能であり、単体で実行可能な CLI を提供していません。そのため、`ipython` や `jupyter` などのツール環境に注入（インジェクション）して使用します。
+
+* **IPython のツール環境にインストールする場合:**
+  ```bash
+  uv tool install ipython --with ipy-auditlog
+  ```
+* **一時的に実行する場合（`uvx` / `uv tool run`）:**
+  ```bash
+  uvx --with ipy-auditlog ipython
+  ```
+
 ### 開発用インストール（このリポジトリをローカルで使う場合）
 
 ```bash
 python -m pip install -e .
+```
+または `uv` を使用する場合:
+```bash
+uv pip install -e .
 ```
 
 ## 使い方
