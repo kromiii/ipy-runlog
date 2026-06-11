@@ -40,7 +40,7 @@ class RunLogger:
         self._last_started_at = started_at
         self._append_event(
             {
-                "event": "run_started",
+                "event": "recording_started",
                 "started_at": started_at,
                 "path": str(self.output_path),
             }
@@ -54,7 +54,7 @@ class RunLogger:
         self._active = False
         self._append_event(
             {
-                "event": "run_stopped",
+                "event": "recording_stopped",
                 "stopped_at": _now_iso(),
                 "path": str(self.output_path),
             }

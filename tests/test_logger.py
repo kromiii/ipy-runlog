@@ -8,6 +8,18 @@ def _read_last_event(path):
     return json.loads(path.read_text(encoding="utf-8").splitlines()[-1])
 
 
+def test_start_and_stop_record_recording_lifecycle_events(tmp_path) -> None:
+    output_path = tmp_path / "run.jsonl"
+    events = SimpleNamespace(register=lambda *args: None, unregister=lambda *args: None)
+    logger = RunLogger(SimpleNamespace(events=events), output_path)
+
+    logger.start()
+    assert _read_last_event(output_path)["event"] == "recording_started"
+
+    logger.stop()
+    assert _read_last_event(output_path)["event"] == "recording_stopped"
+
+
 def test_cell_event_records_code_and_error_by_default(tmp_path) -> None:
     output_path = tmp_path / "run.jsonl"
     logger = RunLogger(None, output_path)

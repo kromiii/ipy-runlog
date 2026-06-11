@@ -85,9 +85,9 @@ appended when the target file already exists.
 
 Event types:
 
-- `run_started`: recording started
+- `recording_started`: recording started
 - `cell_executed`: a cell finished executing
-- `run_stopped`: recording stopped
+- `recording_stopped`: recording stopped
 
 A `cell_executed` event contains:
 
