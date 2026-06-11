@@ -1,85 +1,114 @@
 # ipy-auditlog
 
-IPython のイベントフックを使い、コードセルの実行履歴を JSON Lines 形式で記録する軽量パッケージです。
+A lightweight IPython extension that records code cell execution history as
+JSON Lines (JSONL).
 
-## 使い方
+## Installation
 
-Jupyter Notebook / JupyterLab / IPython で extension を読み込み、ログ収集を開始します。
+With `pip`:
+
+```bash
+pip install ipy-auditlog
+```
+
+In a `uv` project:
+
+```bash
+uv add ipy-auditlog
+```
+
+## Usage
+
+Load the extension in Jupyter Notebook, JupyterLab, or IPython, then start
+recording:
 
 ```python
 %load_ext ipy_auditlog
 %auditlog_start
 ```
 
-ファイル名には現在日時が自動で使われ、実行したセルは
-`.jupyter_audit/` 配下の JSON Lines ファイルに記録されます。
-状態の確認と停止は次のコマンドで行います。
+By default, the log is written to `.jupyter_audit/` in the current working
+directory. The file name is generated from the current date and time, for
+example:
 
 ```text
+.jupyter_audit/20260611-123456.jsonl
+```
+
+Check the current status or stop recording with:
+
+```python
 %auditlog_status
 %auditlog_stop
 ```
 
-ファイル名の指定、保存先、記録内容などのオプションは help を参照してください。
+### Options
 
-```text
+Pass a name to `%auditlog_start` to choose the log file name. The `.jsonl`
+extension is added automatically when omitted:
+
+```python
+%auditlog_start experiment-01
+```
+
+Use `--directory` (or `-d`) to change the output directory:
+
+```python
+%auditlog_start experiment-01 --directory ./logs
+```
+
+Cell outputs are not recorded by default. Enable them with `--output`:
+
+```python
+%auditlog_start experiment-01 --output
+```
+
+Execution errors are recorded by default. Disable error details with
+`--no-error`.
+
+Run the following command for the complete option list:
+
+```python
 %auditlog_start --help
 ```
 
-## インストール
+## Log Format
 
-`pip`:
+Logs use UTF-8 encoded JSON Lines, with one event per line. New events are
+appended when the target file already exists.
 
-```bash
-pip install ipy-auditlog
-```
+Event types:
 
-`uv` プロジェクト:
+- `audit_started`: recording started
+- `cell_executed`: a cell finished executing
+- `audit_stopped`: recording stopped
 
-```bash
-uv add ipy-auditlog
-```
+A `cell_executed` event contains:
 
-## ログ仕様（最小）
+- `started_at` and `ended_at`: local timestamps in ISO 8601 format
+- `elapsed_sec`: execution time in seconds
+- `status`: `success` or `failed`
+- `execution_count`: the IPython execution count
+- `code`: the cell source code
+- `output`: the cell result when `--output` is enabled; non-JSON values are
+  stored using `repr()`
+- `error`: error type, message, and traceback when error recording is enabled
 
-- 形式: JSON Lines（1イベント1行）
-- 文字コード: UTF-8
-- 拡張子: `.jsonl`
-- デフォルトの出力ディレクトリ: `.jupyter_audit/`
-- 既存ファイルがある場合は追記
+## Development
 
-イベント種別:
-
-- `audit_started`
-- `cell_executed`
-- `audit_stopped`
-
-### `cell_executed` の記録項目
-
-- `started_at`
-- `ended_at`
-- `elapsed_sec`
-- `status`（`success` / `failed`）
-- `execution_count`
-- `code`
-- `output`（`--output` 指定時。JSON 化できない値は `repr()` の文字列）
-- `error`（デフォルトで記録。失敗時は type / message / traceback）
-
-## 開発
-
-このリポジトリを editable install します。
+Install this repository in editable mode:
 
 ```bash
 python -m pip install -e .
 ```
 
-`uv` を使用する場合:
+With `uv`:
 
 ```bash
 uv pip install -e .
 ```
 
-テストを実行します。
+Run the test suite:
 
 ```bash
 uv run pytest
