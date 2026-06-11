@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import shlex
 from datetime import datetime
 from pathlib import Path
 
@@ -21,8 +22,12 @@ class AuditLogMagics(Magics):
 
     @line_magic
     def auditlog_start(self, line: str = "") -> None:
-        name = line.strip() or None
-        output_path = _resolve_output_path(name)
+        try:
+            name, directory = _parse_start_args(line)
+        except ValueError as exc:
+            print(f"auditlog_start: {exc}")
+            return
+        output_path = _resolve_output_path(name, directory)
         state = self._state()
         logger: AuditLogger | None = state.get("logger")
         if logger and logger.active:
@@ -73,8 +78,40 @@ def unload_ipython_extension(ipython) -> None:
     delattr(ipython, _STATE_ATTR)
 
 
-def _resolve_output_path(name: str | None) -> Path:
+def _parse_start_args(line: str) -> tuple[str | None, str | None]:
+    try:
+        args = shlex.split(line)
+    except ValueError as exc:
+        raise ValueError(str(exc)) from exc
+
+    name = None
+    directory = None
+    index = 0
+    while index < len(args):
+        arg = args[index]
+        if arg in ("-d", "--directory"):
+            index += 1
+            if index >= len(args):
+                raise ValueError(f"{arg} requires a path")
+            directory = args[index]
+        elif arg.startswith("--directory="):
+            directory = arg.split("=", 1)[1]
+            if not directory:
+                raise ValueError("--directory requires a path")
+        elif arg.startswith("-"):
+            raise ValueError(f"unknown option: {arg}")
+        elif name is None:
+            name = arg
+        else:
+            raise ValueError("only one log name may be specified")
+        index += 1
+
+    return name, directory
+
+
+def _resolve_output_path(name: str | None, directory: str | None = None) -> Path:
     filename = name or datetime.now().strftime("%Y%m%d-%H%M%S")
     if not filename.endswith(".jsonl"):
         filename = f"{filename}.jsonl"
-    return Path.cwd() / ".jupyter_audit" / filename
+    output_directory = Path(directory).expanduser() if directory else Path.cwd() / ".jupyter_audit"
+    return output_directory / filename

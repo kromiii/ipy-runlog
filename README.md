@@ -62,10 +62,31 @@ Jupyter Notebook / JupyterLab / IPython で extension を読み込みます。
 .jupyter_audit/test-analysis.jsonl
 ```
 
+保存先ディレクトリを指定する場合は、`-d` または `--directory` を使用します。
+
+```python
+%auditlog_start test-analysis --directory ./logs
+```
+
+この場合の出力先:
+
+```text
+logs/test-analysis.jsonl
+```
+
+指定したディレクトリが存在しない場合は自動的に作成されます。相対パスは
+IPython のカレントディレクトリを基準に解決されます。
+
 引数を省略すると、現在日時（秒）ベースのファイル名が自動で使われます。
 
 ```python
 %auditlog_start
+```
+
+保存先ディレクトリだけを指定することもできます。
+
+```python
+%auditlog_start --directory ~/auditlogs
 ```
 
 状態確認:
@@ -85,7 +106,7 @@ Jupyter Notebook / JupyterLab / IPython で extension を読み込みます。
 - 形式: JSON Lines（1イベント1行）
 - 文字コード: UTF-8
 - 拡張子: `.jsonl`
-- 出力ディレクトリ: `.jupyter_audit/`
+- デフォルトの出力ディレクトリ: `.jupyter_audit/`
 - 既存ファイルがある場合は追記
 
 イベント種別:
