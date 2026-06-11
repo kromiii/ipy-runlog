@@ -6,11 +6,11 @@ from pathlib import Path
 
 from IPython.core.magic import Magics, line_magic, magics_class
 
-from .logger import AuditLogger
+from .logger import RunLogger
 
-_STATE_ATTR = "_ipy_auditlog_state"
+_STATE_ATTR = "_ipy_runlog_state"
 _START_HELP = """\
-Usage: %auditlog_start [NAME] [OPTIONS]
+Usage: %runlog_start [NAME] [OPTIONS]
 
 Start recording cell execution events as JSON Lines.
 
@@ -18,7 +18,7 @@ Arguments:
   NAME                  Log file name (default: current timestamp)
 
 Options:
-  -d, --directory PATH  Output directory (default: .ipy_audit/)
+  -d, --directory PATH  Output directory (default: .ipy_runlog/)
   --with-output         Record cell output
   --no-output           Do not record cell output (default)
   --error               Record execution errors (default)
@@ -28,7 +28,7 @@ Options:
 
 
 @magics_class
-class AuditLogMagics(Magics):
+class RunLogMagics(Magics):
     def _state(self) -> dict:
         state = getattr(self.shell, _STATE_ATTR, None)
         if state is None:
@@ -37,22 +37,22 @@ class AuditLogMagics(Magics):
         return state
 
     @line_magic
-    def auditlog_start(self, line: str = "") -> None:
+    def runlog_start(self, line: str = "") -> None:
         if _help_requested(line):
             print(_START_HELP)
             return
         try:
             name, directory, record_output, record_error = _parse_start_args(line)
         except ValueError as exc:
-            print(f"auditlog_start: {exc}")
+            print(f"runlog_start: {exc}")
             return
         output_path = _resolve_output_path(name, directory)
         state = self._state()
-        logger: AuditLogger | None = state.get("logger")
+        logger: RunLogger | None = state.get("logger")
         if logger and logger.active:
-            print(f"auditlog already running: {logger.output_path}")
+            print(f"runlog already running: {logger.output_path}")
             return
-        logger = AuditLogger(
+        logger = RunLogger(
             self.shell,
             output_path,
             record_output=record_output,
@@ -60,22 +60,22 @@ class AuditLogMagics(Magics):
         )
         logger.start()
         state["logger"] = logger
-        print(f"auditlog started: {output_path}")
+        print(f"runlog started: {output_path}")
 
     @line_magic
-    def auditlog_stop(self, line: str = "") -> None:
+    def runlog_stop(self, line: str = "") -> None:
         state = self._state()
-        logger: AuditLogger | None = state.get("logger")
+        logger: RunLogger | None = state.get("logger")
         if not logger or not logger.active:
-            print("auditlog is not running")
+            print("runlog is not running")
             return
         logger.stop()
-        print("auditlog stopped")
+        print("runlog stopped")
 
     @line_magic
-    def auditlog_status(self, line: str = "") -> None:
+    def runlog_status(self, line: str = "") -> None:
         state = self._state()
-        logger: AuditLogger | None = state.get("logger")
+        logger: RunLogger | None = state.get("logger")
         if logger and logger.active:
             print(f"running: {logger.output_path}")
             return
@@ -86,7 +86,7 @@ def load_ipython_extension(ipython) -> None:
     state = getattr(ipython, _STATE_ATTR, None)
     if state and state.get("magics_registered"):
         return
-    ipython.register_magics(AuditLogMagics)
+    ipython.register_magics(RunLogMagics)
     setattr(ipython, _STATE_ATTR, {"logger": None, "magics_registered": True})
 
 
@@ -97,7 +97,7 @@ def unload_ipython_extension(ipython) -> None:
     logger = state.get("logger")
     if logger and logger.active:
         logger.stop()
-    for name in ("auditlog_start", "auditlog_stop", "auditlog_status"):
+    for name in ("runlog_start", "runlog_stop", "runlog_status"):
         ipython.magics_manager.magics["line"].pop(name, None)
     delattr(ipython, _STATE_ATTR)
 
@@ -154,5 +154,5 @@ def _resolve_output_path(name: str | None, directory: str | None = None) -> Path
     filename = name or datetime.now().strftime("%Y%m%d-%H%M%S")
     if not filename.endswith(".jsonl"):
         filename = f"{filename}.jsonl"
-    output_directory = Path(directory).expanduser() if directory else Path.cwd() / ".ipy_audit"
+    output_directory = Path(directory).expanduser() if directory else Path.cwd() / ".ipy_runlog"
     return output_directory / filename

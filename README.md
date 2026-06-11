@@ -1,20 +1,26 @@
-# ipy-auditlog
+# ipy-runlog
 
 A lightweight IPython extension that records code cell execution history as
 JSON Lines (JSONL).
+
+## Motivation
+
+Experiments are shaped by failed attempts as well as successful ones.
+Recording both preserves the trial-and-error process, giving an experiment
+notebook a coherent story instead of showing only its final results.
 
 ## Installation
 
 With `pip`:
 
 ```bash
-pip install ipy-auditlog
+pip install ipy-runlog
 ```
 
 In a `uv` project:
 
 ```bash
-uv add ipy-auditlog
+uv add ipy-runlog
 ```
 
 ## Usage
@@ -23,44 +29,44 @@ Load the extension in Jupyter Notebook, JupyterLab, or IPython, then start
 recording:
 
 ```python
-%load_ext ipy_auditlog
-%auditlog_start
+%load_ext ipy_runlog
+%runlog_start
 ```
 
-By default, the log is written to `.ipy_audit/` in the current working
+By default, the log is written to `.ipy_runlog/` in the current working
 directory. The file name is generated from the current date and time, for
 example:
 
 ```text
-.ipy_audit/20260611-123456.jsonl
+.ipy_runlog/20260611-123456.jsonl
 ```
 
 Check the current status or stop recording with:
 
 ```python
-%auditlog_status
-%auditlog_stop
+%runlog_status
+%runlog_stop
 ```
 
 ### Options
 
-Pass a name to `%auditlog_start` to choose the log file name. The `.jsonl`
+Pass a name to `%runlog_start` to choose the log file name. The `.jsonl`
 extension is added automatically when omitted:
 
 ```python
-%auditlog_start experiment-01
+%runlog_start experiment-01
 ```
 
 Use `--directory` (or `-d`) to change the output directory:
 
 ```python
-%auditlog_start experiment-01 --directory ./logs
+%runlog_start experiment-01 --directory ./logs
 ```
 
 Cell outputs are not recorded by default. Enable them with `--with-output`:
 
 ```python
-%auditlog_start experiment-01 --with-output
+%runlog_start experiment-01 --with-output
 ```
 
 Execution errors are recorded by default. Disable error details with
@@ -69,7 +75,7 @@ Execution errors are recorded by default. Disable error details with
 Run the following command for the complete option list:
 
 ```python
-%auditlog_start --help
+%runlog_start --help
 ```
 
 ## Log Format
@@ -79,9 +85,9 @@ appended when the target file already exists.
 
 Event types:
 
-- `audit_started`: recording started
+- `run_started`: recording started
 - `cell_executed`: a cell finished executing
-- `audit_stopped`: recording stopped
+- `run_stopped`: recording stopped
 
 A `cell_executed` event contains:
 

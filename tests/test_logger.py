@@ -1,7 +1,7 @@
 import json
 from types import SimpleNamespace
 
-from ipy_auditlog.logger import AuditLogger
+from ipy_runlog.logger import RunLogger
 
 
 def _read_last_event(path):
@@ -9,8 +9,8 @@ def _read_last_event(path):
 
 
 def test_cell_event_records_code_and_error_by_default(tmp_path) -> None:
-    output_path = tmp_path / "audit.jsonl"
-    logger = AuditLogger(None, output_path)
+    output_path = tmp_path / "run.jsonl"
+    logger = RunLogger(None, output_path)
     error = ValueError("invalid value")
 
     logger._on_pre_run_cell(SimpleNamespace(raw_cell="raise ValueError()"))
@@ -30,8 +30,8 @@ def test_cell_event_records_code_and_error_by_default(tmp_path) -> None:
 
 
 def test_cell_event_can_record_output_and_omit_error(tmp_path) -> None:
-    output_path = tmp_path / "audit.jsonl"
-    logger = AuditLogger(None, output_path, record_output=True, record_error=False)
+    output_path = tmp_path / "run.jsonl"
+    logger = RunLogger(None, output_path, record_output=True, record_error=False)
 
     logger._on_pre_run_cell(SimpleNamespace(raw_cell="{'answer': 42}"))
     logger._on_post_run_cell(
@@ -49,8 +49,8 @@ def test_cell_event_can_record_output_and_omit_error(tmp_path) -> None:
 
 
 def test_non_json_output_is_recorded_as_repr(tmp_path) -> None:
-    output_path = tmp_path / "audit.jsonl"
-    logger = AuditLogger(None, output_path, record_output=True)
+    output_path = tmp_path / "run.jsonl"
+    logger = RunLogger(None, output_path, record_output=True)
 
     logger._on_pre_run_cell(SimpleNamespace(raw_cell="{1, 2}"))
     logger._on_post_run_cell(

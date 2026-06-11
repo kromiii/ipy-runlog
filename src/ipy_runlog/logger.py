@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import Any
 
 
-class AuditLogger:
+class RunLogger:
     def __init__(
         self,
         ipython: Any,
@@ -40,7 +40,7 @@ class AuditLogger:
         self._last_started_at = started_at
         self._append_event(
             {
-                "event": "audit_started",
+                "event": "run_started",
                 "started_at": started_at,
                 "path": str(self.output_path),
             }
@@ -54,7 +54,7 @@ class AuditLogger:
         self._active = False
         self._append_event(
             {
-                "event": "audit_stopped",
+                "event": "run_stopped",
                 "stopped_at": _now_iso(),
                 "path": str(self.output_path),
             }
