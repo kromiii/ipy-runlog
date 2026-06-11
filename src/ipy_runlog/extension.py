@@ -22,7 +22,7 @@ Options:
   --with-output         Record cell output
   --no-output           Do not record cell output (default)
   --error               Record execution errors (default)
-  --exclude-errors      Do not record execution errors
+  --only-input          Record only cell input
   -h, --help            Show this help message
 """
 
@@ -119,6 +119,8 @@ def _parse_start_args(line: str) -> tuple[str | None, str | None, bool, bool]:
     directory = None
     record_output = False
     record_error = True
+    with_output = False
+    only_input = False
     index = 0
     while index < len(args):
         arg = args[index]
@@ -133,12 +135,13 @@ def _parse_start_args(line: str) -> tuple[str | None, str | None, bool, bool]:
                 raise ValueError("--directory requires a path")
         elif arg == "--with-output":
             record_output = True
+            with_output = True
         elif arg == "--no-output":
             record_output = False
         elif arg == "--error":
             record_error = True
-        elif arg == "--exclude-errors":
-            record_error = False
+        elif arg == "--only-input":
+            only_input = True
         elif arg.startswith("-"):
             raise ValueError(f"unknown option: {arg}")
         elif name is None:
@@ -146,6 +149,12 @@ def _parse_start_args(line: str) -> tuple[str | None, str | None, bool, bool]:
         else:
             raise ValueError("only one log name may be specified")
         index += 1
+
+    if with_output and only_input:
+        raise ValueError("--only-input and --with-output cannot be used together")
+    if only_input:
+        record_output = False
+        record_error = False
 
     return name, directory, record_output, record_error
 

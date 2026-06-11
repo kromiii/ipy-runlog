@@ -2,6 +2,8 @@ from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import patch
 
+import pytest
+
 from ipy_runlog.extension import RunLogMagics, _parse_start_args, _resolve_output_path
 
 
@@ -19,12 +21,27 @@ def test_parse_start_args_with_directory_only() -> None:
 
 
 def test_parse_start_args_with_recording_options() -> None:
-    assert _parse_start_args("analysis --with-output --exclude-errors") == (
+    assert _parse_start_args("analysis --only-input") == (
         "analysis",
         None,
-        True,
+        False,
         False,
     )
+
+
+@pytest.mark.parametrize(
+    "line",
+    (
+        "--only-input --with-output",
+        "--with-output --only-input",
+    ),
+)
+def test_parse_start_args_rejects_only_input_with_output(line: str) -> None:
+    with pytest.raises(
+        ValueError,
+        match="--only-input and --with-output cannot be used together",
+    ):
+        _parse_start_args(line)
 
 
 def test_parse_start_args_can_explicitly_select_defaults() -> None:
@@ -40,7 +57,7 @@ def test_runlog_start_help_lists_options(capsys) -> None:
     assert "Usage: %runlog_start [NAME] [OPTIONS]" in output
     assert "--directory PATH" in output
     assert "--with-output" in output
-    assert "--exclude-errors" in output
+    assert "--only-input" in output
 
 
 def test_resolve_output_path_uses_default_directory() -> None:
