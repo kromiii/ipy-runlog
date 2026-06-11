@@ -8,11 +8,26 @@ def test_parse_start_args_with_directory() -> None:
     assert _parse_start_args("analysis --directory './audit logs'") == (
         "analysis",
         "./audit logs",
+        False,
+        True,
     )
 
 
 def test_parse_start_args_with_directory_only() -> None:
-    assert _parse_start_args("-d ~/auditlogs") == (None, "~/auditlogs")
+    assert _parse_start_args("-d ~/auditlogs") == (None, "~/auditlogs", False, True)
+
+
+def test_parse_start_args_with_recording_options() -> None:
+    assert _parse_start_args("analysis --output --no-error") == (
+        "analysis",
+        None,
+        True,
+        False,
+    )
+
+
+def test_parse_start_args_can_explicitly_select_defaults() -> None:
+    assert _parse_start_args("--no-output --error") == (None, None, False, True)
 
 
 def test_resolve_output_path_uses_default_directory() -> None:

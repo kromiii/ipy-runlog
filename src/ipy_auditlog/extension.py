@@ -23,7 +23,7 @@ class AuditLogMagics(Magics):
     @line_magic
     def auditlog_start(self, line: str = "") -> None:
         try:
-            name, directory = _parse_start_args(line)
+            name, directory, record_output, record_error = _parse_start_args(line)
         except ValueError as exc:
             print(f"auditlog_start: {exc}")
             return
@@ -33,7 +33,12 @@ class AuditLogMagics(Magics):
         if logger and logger.active:
             print(f"auditlog already running: {logger.output_path}")
             return
-        logger = AuditLogger(self.shell, output_path)
+        logger = AuditLogger(
+            self.shell,
+            output_path,
+            record_output=record_output,
+            record_error=record_error,
+        )
         logger.start()
         state["logger"] = logger
         print(f"auditlog started: {output_path}")
@@ -78,7 +83,7 @@ def unload_ipython_extension(ipython) -> None:
     delattr(ipython, _STATE_ATTR)
 
 
-def _parse_start_args(line: str) -> tuple[str | None, str | None]:
+def _parse_start_args(line: str) -> tuple[str | None, str | None, bool, bool]:
     try:
         args = shlex.split(line)
     except ValueError as exc:
@@ -86,6 +91,8 @@ def _parse_start_args(line: str) -> tuple[str | None, str | None]:
 
     name = None
     directory = None
+    record_output = False
+    record_error = True
     index = 0
     while index < len(args):
         arg = args[index]
@@ -98,6 +105,14 @@ def _parse_start_args(line: str) -> tuple[str | None, str | None]:
             directory = arg.split("=", 1)[1]
             if not directory:
                 raise ValueError("--directory requires a path")
+        elif arg == "--output":
+            record_output = True
+        elif arg == "--no-output":
+            record_output = False
+        elif arg == "--error":
+            record_error = True
+        elif arg == "--no-error":
+            record_error = False
         elif arg.startswith("-"):
             raise ValueError(f"unknown option: {arg}")
         elif name is None:
@@ -106,7 +121,7 @@ def _parse_start_args(line: str) -> tuple[str | None, str | None]:
             raise ValueError("only one log name may be specified")
         index += 1
 
-    return name, directory
+    return name, directory, record_output, record_error
 
 
 def _resolve_output_path(name: str | None, directory: str | None = None) -> Path:

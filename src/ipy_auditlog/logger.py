@@ -8,9 +8,18 @@ from typing import Any
 
 
 class AuditLogger:
-    def __init__(self, ipython: Any, output_path: Path) -> None:
+    def __init__(
+        self,
+        ipython: Any,
+        output_path: Path,
+        *,
+        record_output: bool = False,
+        record_error: bool = True,
+    ) -> None:
         self._ipython = ipython
         self.output_path = output_path
+        self._record_output = record_output
+        self._record_error = record_error
         self._active = False
         self._last_started_at: str | None = None
         self._last_code: str = ""
@@ -70,8 +79,11 @@ class AuditLogger:
             "status": status,
             "execution_count": getattr(result, "execution_count", None),
             "code": self._last_code,
-            "error": _format_error(error),
         }
+        if self._record_output:
+            event["output"] = _format_output(getattr(result, "result", None))
+        if self._record_error:
+            event["error"] = _format_error(error)
         self._append_event(event)
 
     def _append_event(self, payload: dict[str, Any]) -> None:
@@ -93,3 +105,11 @@ def _format_error(error: BaseException | None) -> dict[str, str] | None:
         "message": str(error),
         "traceback": tb,
     }
+
+
+def _format_output(output: Any) -> Any:
+    try:
+        json.dumps(output, ensure_ascii=False)
+    except (TypeError, ValueError):
+        return repr(output)
+    return output

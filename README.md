@@ -89,6 +89,17 @@ IPython のカレントディレクトリを基準に解決されます。
 %auditlog_start --directory ~/auditlogs
 ```
 
+セルの出力も記録する場合は `--output`、エラーを記録しない場合は
+`--no-error` を指定します。
+
+```python
+%auditlog_start test-analysis --output --no-error
+```
+
+対応するオプションは `--output` / `--no-output` と
+`--error` / `--no-error` です。デフォルトではセルの入力内容（`code`）と
+エラーを記録し、セルの出力は記録しません。
+
 状態確認:
 
 ```python
@@ -123,4 +134,5 @@ IPython のカレントディレクトリを基準に解決されます。
 - `status`（`success` / `failed`）
 - `execution_count`
 - `code`
-- `error`（失敗時は type / message / traceback）
+- `output`（`--output` 指定時。JSON 化できない値は `repr()` の文字列）
+- `error`（デフォルトで記録。失敗時は type / message / traceback）
