@@ -57,10 +57,10 @@ Use `--directory` (or `-d`) to change the output directory:
 %auditlog_start experiment-01 --directory ./logs
 ```
 
-Cell outputs are not recorded by default. Enable them with `--output`:
+Cell outputs are not recorded by default. Enable them with `--with-output`:
 
 ```python
-%auditlog_start experiment-01 --output
+%auditlog_start experiment-01 --with-output
 ```
 
 Execution errors are recorded by default. Disable error details with
@@ -90,7 +90,7 @@ A `cell_executed` event contains:
 - `status`: `success` or `failed`
 - `execution_count`: the IPython execution count
 - `code`: the cell source code
-- `output`: the cell result when `--output` is enabled; non-JSON values are
+- `output`: the cell result when `--with-output` is enabled; non-JSON values are
   stored using `repr()`
 - `error`: error type, message, and traceback when error recording is enabled
 

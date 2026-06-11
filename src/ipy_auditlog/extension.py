@@ -19,7 +19,7 @@ Arguments:
 
 Options:
   -d, --directory PATH  Output directory (default: .ipy_audit/)
-  --output              Record cell output
+  --with-output         Record cell output
   --no-output           Do not record cell output (default)
   --error               Record execution errors (default)
   --no-error            Do not record execution errors
@@ -131,7 +131,7 @@ def _parse_start_args(line: str) -> tuple[str | None, str | None, bool, bool]:
             directory = arg.split("=", 1)[1]
             if not directory:
                 raise ValueError("--directory requires a path")
-        elif arg == "--output":
+        elif arg == "--with-output":
             record_output = True
         elif arg == "--no-output":
             record_output = False

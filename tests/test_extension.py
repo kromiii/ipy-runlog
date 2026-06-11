@@ -19,7 +19,7 @@ def test_parse_start_args_with_directory_only() -> None:
 
 
 def test_parse_start_args_with_recording_options() -> None:
-    assert _parse_start_args("analysis --output --no-error") == (
+    assert _parse_start_args("analysis --with-output --no-error") == (
         "analysis",
         None,
         True,
@@ -39,7 +39,7 @@ def test_auditlog_start_help_lists_options(capsys) -> None:
     output = capsys.readouterr().out
     assert "Usage: %auditlog_start [NAME] [OPTIONS]" in output
     assert "--directory PATH" in output
-    assert "--output" in output
+    assert "--with-output" in output
     assert "--no-error" in output
 
 
