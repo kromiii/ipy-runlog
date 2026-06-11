@@ -22,7 +22,7 @@ Options:
   --with-output         Record cell output
   --no-output           Do not record cell output (default)
   --error               Record execution errors (default)
-  --no-error            Do not record execution errors
+  --exclude-errors      Do not record execution errors
   -h, --help            Show this help message
 """
 
@@ -137,7 +137,7 @@ def _parse_start_args(line: str) -> tuple[str | None, str | None, bool, bool]:
             record_output = False
         elif arg == "--error":
             record_error = True
-        elif arg == "--no-error":
+        elif arg == "--exclude-errors":
             record_error = False
         elif arg.startswith("-"):
             raise ValueError(f"unknown option: {arg}")

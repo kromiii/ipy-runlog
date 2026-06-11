@@ -64,7 +64,7 @@ Cell outputs are not recorded by default. Enable them with `--with-output`:
 ```
 
 Execution errors are recorded by default. Disable error details with
-`--no-error`.
+`--exclude-errors`.
 
 Run the following command for the complete option list:
 
