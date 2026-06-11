@@ -9,6 +9,22 @@ from IPython.core.magic import Magics, line_magic, magics_class
 from .logger import AuditLogger
 
 _STATE_ATTR = "_ipy_auditlog_state"
+_START_HELP = """\
+Usage: %auditlog_start [NAME] [OPTIONS]
+
+Start recording cell execution events as JSON Lines.
+
+Arguments:
+  NAME                  Log file name (default: current timestamp)
+
+Options:
+  -d, --directory PATH  Output directory (default: .jupyter_audit/)
+  --output              Record cell output
+  --no-output           Do not record cell output (default)
+  --error               Record execution errors (default)
+  --no-error            Do not record execution errors
+  -h, --help            Show this help message
+"""
 
 
 @magics_class
@@ -22,6 +38,9 @@ class AuditLogMagics(Magics):
 
     @line_magic
     def auditlog_start(self, line: str = "") -> None:
+        if _help_requested(line):
+            print(_START_HELP)
+            return
         try:
             name, directory, record_output, record_error = _parse_start_args(line)
         except ValueError as exc:
@@ -81,6 +100,13 @@ def unload_ipython_extension(ipython) -> None:
     for name in ("auditlog_start", "auditlog_stop", "auditlog_status"):
         ipython.magics_manager.magics["line"].pop(name, None)
     delattr(ipython, _STATE_ATTR)
+
+
+def _help_requested(line: str) -> bool:
+    try:
+        return any(arg in ("-h", "--help") for arg in shlex.split(line))
+    except ValueError:
+        return False
 
 
 def _parse_start_args(line: str) -> tuple[str | None, str | None, bool, bool]:

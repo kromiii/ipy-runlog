@@ -1,7 +1,8 @@
 from pathlib import Path
+from types import SimpleNamespace
 from unittest.mock import patch
 
-from ipy_auditlog.extension import _parse_start_args, _resolve_output_path
+from ipy_auditlog.extension import AuditLogMagics, _parse_start_args, _resolve_output_path
 
 
 def test_parse_start_args_with_directory() -> None:
@@ -28,6 +29,18 @@ def test_parse_start_args_with_recording_options() -> None:
 
 def test_parse_start_args_can_explicitly_select_defaults() -> None:
     assert _parse_start_args("--no-output --error") == (None, None, False, True)
+
+
+def test_auditlog_start_help_lists_options(capsys) -> None:
+    magics = AuditLogMagics(shell=SimpleNamespace())
+
+    magics.auditlog_start("--help")
+
+    output = capsys.readouterr().out
+    assert "Usage: %auditlog_start [NAME] [OPTIONS]" in output
+    assert "--directory PATH" in output
+    assert "--output" in output
+    assert "--no-error" in output
 
 
 def test_resolve_output_path_uses_default_directory() -> None:
