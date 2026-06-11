@@ -18,7 +18,7 @@ Arguments:
   NAME                  Log file name (default: current timestamp)
 
 Options:
-  -d, --directory PATH  Output directory (default: .jupyter_audit/)
+  -d, --directory PATH  Output directory (default: .ipy_audit/)
   --output              Record cell output
   --no-output           Do not record cell output (default)
   --error               Record execution errors (default)
@@ -154,5 +154,5 @@ def _resolve_output_path(name: str | None, directory: str | None = None) -> Path
     filename = name or datetime.now().strftime("%Y%m%d-%H%M%S")
     if not filename.endswith(".jsonl"):
         filename = f"{filename}.jsonl"
-    output_directory = Path(directory).expanduser() if directory else Path.cwd() / ".jupyter_audit"
+    output_directory = Path(directory).expanduser() if directory else Path.cwd() / ".ipy_audit"
     return output_directory / filename

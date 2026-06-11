@@ -27,12 +27,12 @@ recording:
 %auditlog_start
 ```
 
-By default, the log is written to `.jupyter_audit/` in the current working
+By default, the log is written to `.ipy_audit/` in the current working
 directory. The file name is generated from the current date and time, for
 example:
 
 ```text
-.jupyter_audit/20260611-123456.jsonl
+.ipy_audit/20260611-123456.jsonl
 ```
 
 Check the current status or stop recording with:

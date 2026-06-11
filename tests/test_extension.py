@@ -47,7 +47,7 @@ def test_resolve_output_path_uses_default_directory() -> None:
     with patch("ipy_auditlog.extension.Path.cwd", return_value=Path("/work")):
         output_path = _resolve_output_path("analysis", None)
 
-    assert output_path == Path("/work/.jupyter_audit/analysis.jsonl")
+    assert output_path == Path("/work/.ipy_audit/analysis.jsonl")
 
 
 def test_resolve_output_path_uses_specified_directory() -> None:
