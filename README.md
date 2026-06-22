@@ -84,6 +84,15 @@ Run the following command for the complete option list:
 %runlog_start --help
 ```
 
+## How It Works
+
+The extension uses IPython event handlers to monitor cell execution:
+
+- **`pre_run_cell`**: Triggered before a cell is executed. The extension captures the source code of the cell at this point.
+- **`post_run_cell`**: Triggered after a cell finishes executing. The extension calculates the elapsed time, determines if it was successful or failed (including error details), and optionally captures the output.
+
+Each event is appended as a single JSON line to the log file.
+
 ## Log Format
 
 Logs use UTF-8 encoded JSON Lines, with one event per line. New events are
