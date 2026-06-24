@@ -9,22 +9,35 @@ from IPython.core.magic import Magics, line_magic, magics_class
 from .logger import RunLogger
 
 _STATE_ATTR = "_ipy_runlog_state"
+_HELP = """\
+Usage: %runlog <command> [ARGS]
+
+Commands:
+  start [NAME] [OPTIONS]  Start recording cell execution events as JSON Lines.
+  stop                    Stop recording.
+  status                  Show current recording status.
+  help                    Show this help message.
+
+Options for 'start':
+  NAME        Log file name (default: current timestamp)
+  -d PATH     Output directory (default: .ipy_runlog/)
+  --output    Also record cell output (default: off)
+  -h, --help  Show this help message
+"""
+
 _START_HELP = """\
-Usage: %runlog_start [NAME] [OPTIONS]
+Usage: %runlog start [NAME] [OPTIONS]
 
 Start recording cell execution events as JSON Lines.
+By default, cell input and errors are recorded.
 
 Arguments:
-  NAME                  Log file name (default: current timestamp)
+  NAME        Log file name (default: current timestamp)
 
 Options:
-  -d, --directory PATH  Output directory (default: .ipy_runlog/)
-  --with-output         Record cell output
-  --no-output           Do not record cell output (default)
-  --error               Record execution errors (default)
-  --only-input          Record only cell input
-  -h, --help            Show this help message
-"""
+  -d PATH     Output directory (default: .ipy_runlog/)
+  --output    Also record cell output (default: off)
+  -h, --help  Show this help message"""
 
 
 @magics_class
@@ -37,14 +50,36 @@ class RunLogMagics(Magics):
         return state
 
     @line_magic
-    def runlog_start(self, line: str = "") -> None:
+    def runlog(self, line: str = "") -> None:
+        try:
+            args = shlex.split(line)
+        except ValueError as exc:
+            print(f"runlog: {exc}")
+            return
+
+        if not args or args[0] in ("-h", "--help", "help"):
+            print(_HELP)
+            return
+
+        command, rest = args[0], " ".join(args[1:])
+
+        if command == "start":
+            self._runlog_start(rest)
+        elif command == "stop":
+            self._runlog_stop()
+        elif command == "status":
+            self._runlog_status()
+        else:
+            print(f"runlog: unknown command '{command}'. Run '%runlog help' for usage.")
+
+    def _runlog_start(self, line: str = "") -> None:
         if _help_requested(line):
             print(_START_HELP)
             return
         try:
-            name, directory, record_output, record_error = _parse_start_args(line)
+            name, directory, record_output = _parse_start_args(line)
         except ValueError as exc:
-            print(f"runlog_start: {exc}")
+            print(f"runlog start: {exc}")
             return
         output_path = _resolve_output_path(name, directory)
         state = self._state()
@@ -56,14 +91,13 @@ class RunLogMagics(Magics):
             self.shell,
             output_path,
             record_output=record_output,
-            record_error=record_error,
+            record_error=True,
         )
         logger.start()
         state["logger"] = logger
         print(f"runlog started: {output_path}")
 
-    @line_magic
-    def runlog_stop(self, line: str = "") -> None:
+    def _runlog_stop(self) -> None:
         state = self._state()
         logger: RunLogger | None = state.get("logger")
         if not logger or not logger.active:
@@ -72,8 +106,7 @@ class RunLogMagics(Magics):
         logger.stop()
         print("runlog stopped")
 
-    @line_magic
-    def runlog_status(self, line: str = "") -> None:
+    def _runlog_status(self) -> None:
         state = self._state()
         logger: RunLogger | None = state.get("logger")
         if logger and logger.active:
@@ -97,8 +130,7 @@ def unload_ipython_extension(ipython) -> None:
     logger = state.get("logger")
     if logger and logger.active:
         logger.stop()
-    for name in ("runlog_start", "runlog_stop", "runlog_status"):
-        ipython.magics_manager.magics["line"].pop(name, None)
+    ipython.magics_manager.magics["line"].pop("runlog", None)
     delattr(ipython, _STATE_ATTR)
 
 
@@ -109,7 +141,7 @@ def _help_requested(line: str) -> bool:
         return False
 
 
-def _parse_start_args(line: str) -> tuple[str | None, str | None, bool, bool]:
+def _parse_start_args(line: str) -> tuple[str | None, str | None, bool]:
     try:
         args = shlex.split(line)
     except ValueError as exc:
@@ -118,30 +150,16 @@ def _parse_start_args(line: str) -> tuple[str | None, str | None, bool, bool]:
     name = None
     directory = None
     record_output = False
-    record_error = True
-    with_output = False
-    only_input = False
     index = 0
     while index < len(args):
         arg = args[index]
-        if arg in ("-d", "--directory"):
+        if arg == "-d":
             index += 1
             if index >= len(args):
-                raise ValueError(f"{arg} requires a path")
+                raise ValueError("-d requires a path")
             directory = args[index]
-        elif arg.startswith("--directory="):
-            directory = arg.split("=", 1)[1]
-            if not directory:
-                raise ValueError("--directory requires a path")
-        elif arg == "--with-output":
+        elif arg == "--output":
             record_output = True
-            with_output = True
-        elif arg == "--no-output":
-            record_output = False
-        elif arg == "--error":
-            record_error = True
-        elif arg == "--only-input":
-            only_input = True
         elif arg.startswith("-"):
             raise ValueError(f"unknown option: {arg}")
         elif name is None:
@@ -150,13 +168,7 @@ def _parse_start_args(line: str) -> tuple[str | None, str | None, bool, bool]:
             raise ValueError("only one log name may be specified")
         index += 1
 
-    if with_output and only_input:
-        raise ValueError("--only-input and --with-output cannot be used together")
-    if only_input:
-        record_output = False
-        record_error = False
-
-    return name, directory, record_output, record_error
+    return name, directory, record_output
 
 
 def _resolve_output_path(name: str | None, directory: str | None = None) -> Path:

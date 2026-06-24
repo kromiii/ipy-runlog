@@ -30,7 +30,7 @@ recording:
 
 ```python
 %load_ext ipy_runlog
-%runlog_start
+%runlog start
 ```
 
 By default, the log is written to `.ipy_runlog/` in the current working
@@ -44,44 +44,36 @@ example:
 Check the current status or stop recording with:
 
 ```python
-%runlog_status
-%runlog_stop
+%runlog status
+%runlog stop
 ```
 
 ### Options
 
-Pass a name to `%runlog_start` to choose the log file name. The `.jsonl`
+Pass a name to `%runlog start` to choose the log file name. The `.jsonl`
 extension is added automatically when omitted:
 
 ```python
-%runlog_start experiment-01
+%runlog start experiment-01
 ```
 
-Use `--directory` (or `-d`) to change the output directory:
+Use `-d` to change the output directory:
 
 ```python
-%runlog_start experiment-01 --directory ./logs
+%runlog start experiment-01 -d ./logs
 ```
 
-Cell outputs are not recorded by default. Enable them with `--with-output`:
+Cell outputs are not recorded by default. Enable them with `--output`:
 
 ```python
-%runlog_start experiment-01 --with-output
+%runlog start experiment-01 --output
 ```
 
-Execution errors are recorded by default. Use `--only-input` to record only cell
-input, without output or execution error details:
+Execution errors are always recorded. Run the following for the complete option
+list:
 
 ```python
-%runlog_start experiment-01 --only-input
-```
-
-`--only-input` and `--with-output` cannot be used together.
-
-Run the following command for the complete option list:
-
-```python
-%runlog_start --help
+%runlog start --help
 ```
 
 ## How It Works
@@ -111,9 +103,9 @@ A `cell_executed` event contains:
 - `status`: `success` or `failed`
 - `execution_count`: the IPython execution count
 - `code`: the cell source code
-- `output`: the cell result when `--with-output` is enabled; non-JSON values are
+- `output`: the cell result when `--output` is enabled; non-JSON values are
   stored using `repr()`
-- `error`: error type, message, and traceback when error recording is enabled
+- `error`: error type, message, and traceback (always recorded on failure)
 
 ## Development
 

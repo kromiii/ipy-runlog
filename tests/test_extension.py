@@ -7,57 +7,78 @@ import pytest
 from ipy_runlog.extension import RunLogMagics, _parse_start_args, _resolve_output_path
 
 
+def test_parse_start_args_defaults() -> None:
+    assert _parse_start_args("") == (None, None, False)
+
+
+def test_parse_start_args_with_name() -> None:
+    assert _parse_start_args("analysis") == ("analysis", None, False)
+
+
 def test_parse_start_args_with_directory() -> None:
-    assert _parse_start_args("analysis --directory './run logs'") == (
+    assert _parse_start_args("analysis -d './run logs'") == (
         "analysis",
         "./run logs",
         False,
-        True,
     )
 
 
 def test_parse_start_args_with_directory_only() -> None:
-    assert _parse_start_args("-d ~/runlogs") == (None, "~/runlogs", False, True)
+    assert _parse_start_args("-d ~/runlogs") == (None, "~/runlogs", False)
 
 
-def test_parse_start_args_with_recording_options() -> None:
-    assert _parse_start_args("analysis --only-input") == (
+def test_parse_start_args_with_output() -> None:
+    assert _parse_start_args("analysis --output") == ("analysis", None, True)
+
+
+def test_parse_start_args_output_and_directory() -> None:
+    assert _parse_start_args("analysis -d ./logs --output") == (
         "analysis",
-        None,
-        False,
-        False,
+        "./logs",
+        True,
     )
 
 
-@pytest.mark.parametrize(
-    "line",
-    (
-        "--only-input --with-output",
-        "--with-output --only-input",
-    ),
-)
-def test_parse_start_args_rejects_only_input_with_output(line: str) -> None:
-    with pytest.raises(
-        ValueError,
-        match="--only-input and --with-output cannot be used together",
-    ):
-        _parse_start_args(line)
+def test_parse_start_args_rejects_unknown_option() -> None:
+    with pytest.raises(ValueError, match="unknown option: --only-input"):
+        _parse_start_args("--only-input")
 
 
-def test_parse_start_args_can_explicitly_select_defaults() -> None:
-    assert _parse_start_args("--no-output --error") == (None, None, False, True)
+def test_parse_start_args_rejects_duplicate_name() -> None:
+    with pytest.raises(ValueError, match="only one log name may be specified"):
+        _parse_start_args("foo bar")
 
 
 def test_runlog_start_help_lists_options(capsys) -> None:
     magics = RunLogMagics(shell=SimpleNamespace())
 
-    magics.runlog_start("--help")
+    magics.runlog("start --help")
 
     output = capsys.readouterr().out
-    assert "Usage: %runlog_start [NAME] [OPTIONS]" in output
-    assert "--directory PATH" in output
-    assert "--with-output" in output
-    assert "--only-input" in output
+    assert "Usage: %runlog start [NAME] [OPTIONS]" in output
+    assert "-d PATH" in output
+    assert "--output" in output
+
+
+def test_runlog_help_lists_commands(capsys) -> None:
+    magics = RunLogMagics(shell=SimpleNamespace())
+
+    magics.runlog("help")
+
+    output = capsys.readouterr().out
+    assert "Usage: %runlog <command>" in output
+    assert "start" in output
+    assert "stop" in output
+    assert "status" in output
+
+
+def test_runlog_unknown_command(capsys) -> None:
+    magics = RunLogMagics(shell=SimpleNamespace())
+
+    magics.runlog("unknown")
+
+    output = capsys.readouterr().out
+    assert "unknown command 'unknown'" in output
 
 
 def test_resolve_output_path_uses_default_directory() -> None:
