@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import atexit
 import json
 import traceback
 from datetime import datetime
@@ -36,6 +37,7 @@ class RunLogger:
         self._ipython.events.register("pre_run_cell", self._on_pre_run_cell)
         self._ipython.events.register("post_run_cell", self._on_post_run_cell)
         self._active = True
+        atexit.register(self._on_exit)
         started_at = _now_iso()
         self._last_started_at = started_at
         self._append_event(
@@ -49,6 +51,7 @@ class RunLogger:
     def stop(self) -> None:
         if not self._active:
             return
+        atexit.unregister(self._on_exit)
         self._ipython.events.unregister("pre_run_cell", self._on_pre_run_cell)
         self._ipython.events.unregister("post_run_cell", self._on_post_run_cell)
         self._active = False
@@ -57,6 +60,37 @@ class RunLogger:
                 "event": "recording_stopped",
                 "stopped_at": _now_iso(),
                 "path": str(self.output_path),
+            }
+        )
+
+    def rename(self, new_name: str) -> None:
+        """Rename the current log file. Recording continues uninterrupted."""
+        if not new_name.endswith(".jsonl"):
+            new_name = f"{new_name}.jsonl"
+        new_path = self.output_path.parent / new_name
+        self.output_path.rename(new_path)
+        self.output_path = new_path
+        self._append_event(
+            {
+                "event": "recording_renamed",
+                "renamed_at": _now_iso(),
+                "path": str(self.output_path),
+            }
+        )
+
+    def _on_exit(self) -> None:
+        """Called by atexit when the Python process exits normally."""
+        if not self._active:
+            return
+        self._ipython.events.unregister("pre_run_cell", self._on_pre_run_cell)
+        self._ipython.events.unregister("post_run_cell", self._on_post_run_cell)
+        self._active = False
+        self._append_event(
+            {
+                "event": "recording_stopped",
+                "stopped_at": _now_iso(),
+                "path": str(self.output_path),
+                "reason": "session_ended",
             }
         )
 

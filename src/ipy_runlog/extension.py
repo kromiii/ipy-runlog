@@ -6,29 +6,32 @@ from pathlib import Path
 
 from IPython.core.magic import Magics, line_magic, magics_class
 
+from .config import load_config
 from .logger import RunLogger
 
 _STATE_ATTR = "_ipy_runlog_state"
+
 _HELP = """\
 Usage: %runlog <command> [ARGS]
 
 Commands:
-  start [NAME] [OPTIONS]  Start recording cell execution events as JSON Lines.
-  stop                    Stop recording.
-  status                  Show current recording status.
-  help                    Show this help message.
+  new [NAME] [OPTIONS]  Close current log and start a new one.
+  rename NAME           Rename the current log file (recording continues).
+  stop                  Stop recording manually.
+  status                Show current recording status.
+  help                  Show this help message.
 
-Options for 'start':
+Options for 'new':
   NAME        Log file name (default: current timestamp)
   -d PATH     Output directory (default: .ipy_runlog/)
   --output    Also record cell output (default: off)
   -h, --help  Show this help message
 """
 
-_START_HELP = """\
-Usage: %runlog start [NAME] [OPTIONS]
+_NEW_HELP = """\
+Usage: %runlog new [NAME] [OPTIONS]
 
-Start recording cell execution events as JSON Lines.
+Close the current log and start recording to a new file.
 By default, cell input and errors are recorded.
 
 Arguments:
@@ -63,8 +66,10 @@ class RunLogMagics(Magics):
 
         command, rest = args[0], " ".join(args[1:])
 
-        if command == "start":
-            self._runlog_start(rest)
+        if command == "new":
+            self._runlog_new(rest)
+        elif command == "rename":
+            self._runlog_rename(rest)
         elif command == "stop":
             self._runlog_stop()
         elif command == "status":
@@ -72,30 +77,59 @@ class RunLogMagics(Magics):
         else:
             print(f"runlog: unknown command '{command}'. Run '%runlog help' for usage.")
 
-    def _runlog_start(self, line: str = "") -> None:
+    def _runlog_new(self, line: str = "") -> None:
         if _help_requested(line):
-            print(_START_HELP)
+            print(_NEW_HELP)
             return
         try:
-            name, directory, record_output = _parse_start_args(line)
+            name, directory, record_output = _parse_new_args(line)
         except ValueError as exc:
-            print(f"runlog start: {exc}")
+            print(f"runlog new: {exc}")
             return
-        output_path = _resolve_output_path(name, directory)
+
         state = self._state()
         logger: RunLogger | None = state.get("logger")
         if logger and logger.active:
-            print(f"runlog already running: {logger.output_path}")
-            return
+            logger.stop()
+
+        config = load_config(Path.cwd())
+        output_path = _resolve_output_path(
+            name or config.get("name"),
+            directory or config.get("directory"),
+        )
         logger = RunLogger(
             self.shell,
             output_path,
-            record_output=record_output,
+            record_output=record_output or bool(config.get("output", False)),
             record_error=True,
         )
         logger.start()
         state["logger"] = logger
         print(f"runlog started: {output_path}")
+
+    def _runlog_rename(self, line: str = "") -> None:
+        try:
+            args = shlex.split(line)
+        except ValueError as exc:
+            print(f"runlog rename: {exc}")
+            return
+
+        if not args:
+            print("runlog rename: a name is required")
+            return
+        if len(args) > 1:
+            print("runlog rename: only one name may be specified")
+            return
+
+        state = self._state()
+        logger: RunLogger | None = state.get("logger")
+        if not logger or not logger.active:
+            print("runlog is not running")
+            return
+
+        old_path = logger.output_path
+        logger.rename(args[0])
+        print(f"runlog renamed: {old_path.name} -> {logger.output_path.name}")
 
     def _runlog_stop(self) -> None:
         state = self._state()
@@ -120,7 +154,22 @@ def load_ipython_extension(ipython) -> None:
     if state and state.get("magics_registered"):
         return
     ipython.register_magics(RunLogMagics)
-    setattr(ipython, _STATE_ATTR, {"logger": None, "magics_registered": True})
+    state = {"logger": None, "magics_registered": True}
+    setattr(ipython, _STATE_ATTR, state)
+
+    config = load_config(Path.cwd())
+    output_path = _resolve_output_path(
+        config.get("name"),
+        config.get("directory"),
+    )
+    logger = RunLogger(
+        ipython,
+        output_path,
+        record_output=bool(config.get("output", False)),
+        record_error=True,
+    )
+    logger.start()
+    state["logger"] = logger
 
 
 def unload_ipython_extension(ipython) -> None:
@@ -141,7 +190,7 @@ def _help_requested(line: str) -> bool:
         return False
 
 
-def _parse_start_args(line: str) -> tuple[str | None, str | None, bool]:
+def _parse_new_args(line: str) -> tuple[str | None, str | None, bool]:
     try:
         args = shlex.split(line)
     except ValueError as exc:

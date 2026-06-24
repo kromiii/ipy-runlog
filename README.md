@@ -25,56 +25,84 @@ uv add ipy-runlog
 
 ## Usage
 
-Load the extension in Jupyter Notebook, JupyterLab, or IPython, then start
-recording:
+Load the extension — recording starts automatically:
 
 ```python
 %load_ext ipy_runlog
-%runlog start
 ```
 
-By default, the log is written to `.ipy_runlog/` in the current working
-directory. The file name is generated from the current date and time, for
-example:
+The log is written to `.ipy_runlog/` in the current working directory. The
+file name is generated from the current date and time, for example:
 
 ```text
 .ipy_runlog/20260611-123456.jsonl
 ```
 
-Check the current status or stop recording with:
+Recording stops automatically when the IPython session ends.
+
+### Commands
+
+Check the current status:
 
 ```python
 %runlog status
+```
+
+Switch to a new log file mid-session (closes the current log):
+
+```python
+%runlog new experiment-01
+%runlog new experiment-01 --output   # also record cell output
+%runlog new experiment-01 -d ./logs  # custom output directory
+```
+
+Rename the current log file without interrupting recording:
+
+```python
+%runlog rename feature-extraction
+```
+
+Stop recording manually:
+
+```python
 %runlog stop
 ```
 
-### Options
-
-Pass a name to `%runlog start` to choose the log file name. The `.jsonl`
-extension is added automatically when omitted:
+Show help:
 
 ```python
-%runlog start experiment-01
+%runlog help
+%runlog new --help
 ```
 
-Use `-d` to change the output directory:
+### Configuration
 
-```python
-%runlog start experiment-01 -d ./logs
+You can set defaults in `pyproject.toml`:
+
+```toml
+[tool.ipy-runlog]
+directory = "./logs"
+output = true
 ```
 
-Cell outputs are not recorded by default. Enable them with `--output`:
+Or in `.ipy_runlog.toml` at the project root (used as a fallback when
+`pyproject.toml` is absent or has no `[tool.ipy-runlog]` section):
 
-```python
-%runlog start experiment-01 --output
+```toml
+directory = "./logs"
+output = true
 ```
 
-Execution errors are always recorded. Run the following for the complete option
-list:
+Available config keys:
 
-```python
-%runlog start --help
-```
+| Key         | Type   | Default          | Description                          |
+|-------------|--------|------------------|--------------------------------------|
+| `directory` | string | `.ipy_runlog/`   | Output directory                     |
+| `output`    | bool   | `false`          | Record cell output                   |
+| `name`      | string | current timestamp| Default log file name                |
+
+> **Note**: Python 3.11+ uses the built-in `tomllib`. For Python 3.9–3.10,
+> install `tomli` to enable config file support: `pip install tomli`.
 
 ## How It Works
 
@@ -83,7 +111,9 @@ The extension uses IPython event handlers to monitor cell execution:
 - **`pre_run_cell`**: Triggered before a cell is executed. The extension captures the source code of the cell at this point.
 - **`post_run_cell`**: Triggered after a cell finishes executing. The extension calculates the elapsed time, determines if it was successful or failed (including error details), and optionally captures the output.
 
-Each event is appended as a single JSON line to the log file.
+Each event is appended as a single JSON line to the log file. On normal
+session exit, a final `recording_stopped` event is written automatically via
+`atexit`.
 
 ## Log Format
 
@@ -94,7 +124,8 @@ Event types:
 
 - `recording_started`: recording started
 - `cell_executed`: a cell finished executing
-- `recording_stopped`: recording stopped
+- `recording_renamed`: log file was renamed with `%runlog rename`
+- `recording_stopped`: recording stopped (includes `"reason": "session_ended"` on automatic stop)
 
 A `cell_executed` event contains:
 
