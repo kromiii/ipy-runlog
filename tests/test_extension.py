@@ -6,7 +6,12 @@ from unittest.mock import patch
 
 import pytest
 
-from ipy_runlog.extension import RunLogMagics, _parse_new_args, _resolve_output_path, _title_to_filename
+from ipy_runlog.extension import (
+    RunLogMagics,
+    _parse_new_args,
+    _resolve_output_path,
+    _title_to_filename,
+)
 
 
 # ---------------------------------------------------------------------------
@@ -149,7 +154,10 @@ def test_runlog_title_renames_file_and_updates_title(tmp_path, capsys) -> None:
 
     setattr(shell, _STATE_ATTR, {"logger": logger, "magics_registered": True})
 
-    with patch.object(logger, "rename") as mock_rename, patch.object(logger, "set_title") as mock_set_title:
+    with (
+        patch.object(logger, "rename") as mock_rename,
+        patch.object(logger, "set_title") as mock_set_title,
+    ):
         magics.runlog("title 'My Analysis'")
         mock_rename.assert_called_once_with("my-analysis")
         mock_set_title.assert_called_once_with("My Analysis")

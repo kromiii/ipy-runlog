@@ -84,9 +84,13 @@ class RunLogger:
             return
         self._cell_count += 1
         started_dt = self._last_started_dt
-        started_at = self._last_started_at or started_dt.isoformat(timespec="microseconds")
+        started_at = self._last_started_at or started_dt.isoformat(
+            timespec="microseconds"
+        )
         ended_dt = datetime.now()
-        error = getattr(result, "error_in_exec", None) or getattr(result, "error_before_exec", None)
+        error = getattr(result, "error_in_exec", None) or getattr(
+            result, "error_before_exec", None
+        )
         status = "failed" if error else "success"
         elapsed = (ended_dt - started_dt).total_seconds()
 
@@ -136,7 +140,7 @@ def _update_frontmatter(path: Path, key: str, value: str) -> None:
         return
 
     frontmatter_body = content[4:close_idx]
-    rest = content[close_idx + 5:]  # skip "\n---\n"
+    rest = content[close_idx + 5 :]  # skip "\n---\n"
 
     new_key_line = f"{key}: {value}"
     lines = frontmatter_body.split("\n")
