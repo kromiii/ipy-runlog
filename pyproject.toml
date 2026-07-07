@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "ipy-runlog"
 version = "0.1.0"
-description = "Lightweight JSONL execution logging for IPython."
+description = "A lightweight IPython extension that records code cell execution history as Quarto Markdown (QMD)."
 readme = "README.md"
 requires-python = ">=3.11"
 license = "MIT"
@@ -13,7 +13,7 @@ license-files = ["LICENSE"]
 authors = [
   { name = "Hiroyuki Kuromiya", email = "contact@kromiii.info" }
 ]
-keywords = ["ipython", "jupyter", "logging", "jsonl", "experiment", "notebook"]
+keywords = ["ipython", "jupyter", "logging", "quarto", "qmd", "markdown", "experiment", "notebook"]
 classifiers = [
   "Development Status :: 3 - Alpha",
   "Intended Audience :: Developers",
