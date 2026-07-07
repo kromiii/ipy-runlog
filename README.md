@@ -99,9 +99,6 @@ Available config keys:
 | `directory` | string | `.ipy_runlog/`    | Output directory                     |
 | `author`    | string | *(none)*          | Author written into the QMD frontmatter |
 
-> **Note**: Python 3.11+ uses the built-in `tomllib`. For Python 3.9–3.10,
-> install `tomli` to enable config file support: `pip install tomli`.
-
 ## How It Works
 
 The extension uses IPython event handlers to monitor cell execution:
