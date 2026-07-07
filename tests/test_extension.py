@@ -102,7 +102,6 @@ def test_runlog_help_lists_commands(capsys) -> None:
     output = capsys.readouterr().out
     assert "Usage: %runlog <command>" in output
     assert "new" in output
-    assert "rename" in output
     assert "title" in output
     assert "stop" in output
     assert "status" in output
@@ -132,49 +131,11 @@ def test_runlog_stop_when_not_running(capsys) -> None:
 
 
 # ---------------------------------------------------------------------------
-# %runlog rename
-# ---------------------------------------------------------------------------
-
-
-def test_runlog_rename_updates_path(tmp_path, capsys) -> None:
-    shell = SimpleNamespace()
-    magics = RunLogMagics(shell=shell)
-
-    from ipy_runlog.logger import RunLogger
-    from ipy_runlog.extension import _STATE_ATTR
-
-    log_file = tmp_path / "old.qmd"
-    log_file.write_text("", encoding="utf-8")
-    logger = RunLogger(None, log_file)
-    logger._active = True
-
-    setattr(shell, _STATE_ATTR, {"logger": logger, "magics_registered": True})
-
-    with patch.object(logger, "rename") as mock_rename:
-        magics.runlog("rename newname")
-        mock_rename.assert_called_once_with("newname")
-
-
-def test_runlog_rename_requires_name(capsys) -> None:
-    shell = SimpleNamespace()
-    magics = RunLogMagics(shell=shell)
-
-    from ipy_runlog.extension import _STATE_ATTR
-
-    setattr(shell, _STATE_ATTR, {"logger": None, "magics_registered": True})
-
-    magics.runlog("rename")
-
-    output = capsys.readouterr().out
-    assert "a name is required" in output
-
-
-# ---------------------------------------------------------------------------
 # %runlog title
 # ---------------------------------------------------------------------------
 
 
-def test_runlog_title_calls_set_title(tmp_path, capsys) -> None:
+def test_runlog_title_renames_file_and_updates_title(tmp_path, capsys) -> None:
     shell = SimpleNamespace()
     magics = RunLogMagics(shell=shell)
 
@@ -188,8 +149,9 @@ def test_runlog_title_calls_set_title(tmp_path, capsys) -> None:
 
     setattr(shell, _STATE_ATTR, {"logger": logger, "magics_registered": True})
 
-    with patch.object(logger, "set_title") as mock_set_title:
+    with patch.object(logger, "rename") as mock_rename, patch.object(logger, "set_title") as mock_set_title:
         magics.runlog("title 'My Analysis'")
+        mock_rename.assert_called_once_with("my-analysis")
         mock_set_title.assert_called_once_with("My Analysis")
 
 

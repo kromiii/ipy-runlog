@@ -55,16 +55,10 @@ Switch to a new log file mid-session (closes the current log):
 %runlog new "Feature Extraction" -d ./logs  # custom output directory
 ```
 
-Update the title in the current log's frontmatter without interrupting recording:
+Update the title in the current log's frontmatter and rename the log file accordingly without interrupting recording:
 
 ```python
 %runlog title "My Analysis Session"
-```
-
-Rename the current log file without interrupting recording:
-
-```python
-%runlog rename feature-extraction
 ```
 
 Stop recording manually:

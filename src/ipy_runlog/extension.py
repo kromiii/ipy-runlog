@@ -17,8 +17,7 @@ Usage: %runlog <command> [ARGS]
 
 Commands:
   new [TITLE] [OPTIONS]  Close current log and start a new one.
-  rename NAME            Rename the current log file (recording continues).
-  title TITLE            Update the title in the current log's frontmatter.
+  title TITLE            Update the title and rename the log file.
   stop                   Stop recording manually.
   status                 Show current recording status.
   help                   Show this help message.
@@ -71,8 +70,6 @@ class RunLogMagics(Magics):
 
         if command == "new":
             self._runlog_new(rest)
-        elif command == "rename":
-            self._runlog_rename(rest)
         elif command == "title":
             self._runlog_title(rest)
         elif command == "stop":
@@ -113,30 +110,6 @@ class RunLogMagics(Magics):
         state["logger"] = logger
         print(f"runlog started: {output_path}")
 
-    def _runlog_rename(self, line: str = "") -> None:
-        try:
-            args = shlex.split(line)
-        except ValueError as exc:
-            print(f"runlog rename: {exc}")
-            return
-
-        if not args:
-            print("runlog rename: a name is required")
-            return
-        if len(args) > 1:
-            print("runlog rename: only one name may be specified")
-            return
-
-        state = self._state()
-        logger: RunLogger | None = state.get("logger")
-        if not logger or not logger.active:
-            print("runlog is not running")
-            return
-
-        old_path = logger.output_path
-        logger.rename(args[0])
-        print(f"runlog renamed: {old_path.name} -> {logger.output_path.name}")
-
     def _runlog_title(self, line: str = "") -> None:
         try:
             args = shlex.split(line)
@@ -155,8 +128,11 @@ class RunLogMagics(Magics):
             print("runlog is not running")
             return
 
+        old_path = logger.output_path
+        new_name = _title_to_filename(title)
+        logger.rename(new_name)
         logger.set_title(title)
-        print(f"runlog title set: {title}")
+        print(f"runlog title set: {title} (renamed: {old_path.name} -> {logger.output_path.name})")
 
     def _runlog_stop(self) -> None:
         state = self._state()
