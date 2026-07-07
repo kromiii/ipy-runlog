@@ -1,7 +1,7 @@
 # ipy-runlog
 
 A lightweight IPython extension that records code cell execution history as
-JSON Lines (JSONL).
+[Quarto Markdown (QMD)](https://quarto.org/).
 
 ## Motivation
 
@@ -35,7 +35,7 @@ The log is written to `.ipy_runlog/` in the current working directory. The
 file name is generated from the current date and time, for example:
 
 ```text
-.ipy_runlog/20260611-123456.jsonl
+.ipy_runlog/20260611-123456.qmd
 ```
 
 Recording stops automatically when the IPython session ends.
@@ -51,15 +51,14 @@ Check the current status:
 Switch to a new log file mid-session (closes the current log):
 
 ```python
-%runlog new experiment-01
-%runlog new experiment-01 --output   # also record cell output
-%runlog new experiment-01 -d ./logs  # custom output directory
+%runlog new "My Analysis Session"        # title + derived filename: my-analysis-session.qmd
+%runlog new "Feature Extraction" -d ./logs  # custom output directory
 ```
 
-Rename the current log file without interrupting recording:
+Update the title in the current log's frontmatter and rename the log file accordingly without interrupting recording:
 
 ```python
-%runlog rename feature-extraction
+%runlog title "My Analysis Session"
 ```
 
 Stop recording manually:
@@ -82,7 +81,7 @@ You can set defaults in `pyproject.toml`:
 ```toml
 [tool.ipy-runlog]
 directory = "./logs"
-output = true
+author = "Jane Doe"
 ```
 
 Or in `.ipy_runlog.toml` at the project root (used as a fallback when
@@ -90,16 +89,15 @@ Or in `.ipy_runlog.toml` at the project root (used as a fallback when
 
 ```toml
 directory = "./logs"
-output = true
+author = "Jane Doe"
 ```
 
 Available config keys:
 
-| Key         | Type   | Default          | Description                          |
-|-------------|--------|------------------|--------------------------------------|
-| `directory` | string | `.ipy_runlog/`   | Output directory                     |
-| `output`    | bool   | `false`          | Record cell output                   |
-| `name`      | string | current timestamp| Default log file name                |
+| Key         | Type   | Default           | Description                          |
+|-------------|--------|-------------------|--------------------------------------|
+| `directory` | string | `.ipy_runlog/`    | Output directory                     |
+| `author`    | string | *(none)*          | Author written into the QMD frontmatter |
 
 > **Note**: Python 3.11+ uses the built-in `tomllib`. For Python 3.9–3.10,
 > install `tomli` to enable config file support: `pip install tomli`.
@@ -109,34 +107,49 @@ Available config keys:
 The extension uses IPython event handlers to monitor cell execution:
 
 - **`pre_run_cell`**: Triggered before a cell is executed. The extension captures the source code of the cell at this point.
-- **`post_run_cell`**: Triggered after a cell finishes executing. The extension calculates the elapsed time, determines if it was successful or failed (including error details), and optionally captures the output.
+- **`post_run_cell`**: Triggered after a cell finishes executing. The extension calculates the elapsed time and determines if it was successful or failed (including error details).
 
-Each event is appended as a single JSON line to the log file. On normal
-session exit, a final `recording_stopped` event is written automatically via
-`atexit`.
+Each cell is appended to the QMD file as an HTML comment with execution
+metadata followed by a fenced Python code block. Errors are recorded in a
+fenced `stderr` block.
 
 ## Log Format
 
-Logs use UTF-8 encoded JSON Lines, with one event per line. New events are
-appended when the target file already exists.
+Logs are UTF-8 encoded [Quarto Markdown](https://quarto.org/) files. Each
+file begins with a YAML frontmatter block:
 
-Event types:
+```yaml
+---
+title: "My Session"
+author: "Jane Doe"
+date: 2026-06-11T12:34:56.789012
+---
+```
 
-- `recording_started`: recording started
-- `cell_executed`: a cell finished executing
-- `recording_renamed`: log file was renamed with `%runlog rename`
-- `recording_stopped`: recording stopped (includes `"reason": "session_ended"` on automatic stop)
+Each cell execution is recorded as:
 
-A `cell_executed` event contains:
+````qmd
+<!-- cell: started=2026-06-11T12:35:00.000000, ended=2026-06-11T12:35:00.012000, status=success, elapsed=0.012s -->
+```python
+x = 1 + 1
+```
 
-- `started_at` and `ended_at`: local timestamps in ISO 8601 format
-- `elapsed_sec`: execution time in seconds
-- `status`: `success` or `failed`
-- `execution_count`: the IPython execution count
-- `code`: the cell source code
-- `output`: the cell result when `--output` is enabled; non-JSON values are
-  stored using `repr()`
-- `error`: error type, message, and traceback (always recorded on failure)
+<!-- cell: started=2026-06-11T12:36:00.000000, ended=2026-06-11T12:36:00.005000, status=failed, elapsed=0.005s -->
+```python
+print(undefined_variable)
+```
+
+```stderr
+Traceback (most recent call last):
+  ...
+NameError: name 'undefined_variable' is not defined
+```
+
+````
+
+> **Planned feature**: Capturing cell output (stdout and rich display objects)
+> is planned for a future release. The focus of the current version is on
+> recording code and errors as a lightweight audit trail.
 
 ## Development
 

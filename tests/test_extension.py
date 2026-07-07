@@ -6,7 +6,7 @@ from unittest.mock import patch
 
 import pytest
 
-from ipy_runlog.extension import RunLogMagics, _parse_new_args, _resolve_output_path
+from ipy_runlog.extension import RunLogMagics, _parse_new_args, _resolve_output_path, _title_to_filename
 
 
 # ---------------------------------------------------------------------------
@@ -15,35 +15,30 @@ from ipy_runlog.extension import RunLogMagics, _parse_new_args, _resolve_output_
 
 
 def test_parse_new_args_defaults() -> None:
-    assert _parse_new_args("") == (None, None, False)
+    assert _parse_new_args("") == (None, None)
 
 
-def test_parse_new_args_with_name() -> None:
-    assert _parse_new_args("analysis") == ("analysis", None, False)
+def test_parse_new_args_with_title() -> None:
+    assert _parse_new_args("My Analysis") == ("My Analysis", None)
 
 
 def test_parse_new_args_with_directory() -> None:
-    assert _parse_new_args("analysis -d './run logs'") == (
-        "analysis",
+    assert _parse_new_args("My Analysis -d './run logs'") == (
+        "My Analysis",
         "./run logs",
-        False,
     )
 
 
 def test_parse_new_args_with_directory_only() -> None:
-    assert _parse_new_args("-d ~/runlogs") == (None, "~/runlogs", False)
+    assert _parse_new_args("-d ~/runlogs") == (None, "~/runlogs")
 
 
-def test_parse_new_args_with_output() -> None:
-    assert _parse_new_args("analysis --output") == ("analysis", None, True)
+def test_parse_new_args_multiword_title_without_quotes() -> None:
+    assert _parse_new_args("My Analysis Session") == ("My Analysis Session", None)
 
 
-def test_parse_new_args_output_and_directory() -> None:
-    assert _parse_new_args("analysis -d ./logs --output") == (
-        "analysis",
-        "./logs",
-        True,
-    )
+def test_parse_new_args_multiword_title_with_directory() -> None:
+    assert _parse_new_args("My Analysis -d ./logs") == ("My Analysis", "./logs")
 
 
 def test_parse_new_args_rejects_unknown_option() -> None:
@@ -51,9 +46,31 @@ def test_parse_new_args_rejects_unknown_option() -> None:
         _parse_new_args("--only-input")
 
 
-def test_parse_new_args_rejects_duplicate_name() -> None:
-    with pytest.raises(ValueError, match="only one log name may be specified"):
-        _parse_new_args("foo bar")
+def test_parse_new_args_title_requires_value() -> None:
+    # --title no longer exists; passing it should raise unknown option
+    with pytest.raises(ValueError, match="unknown option: --title"):
+        _parse_new_args("--title")
+
+
+# ---------------------------------------------------------------------------
+# _title_to_filename
+# ---------------------------------------------------------------------------
+
+
+def test_title_to_filename_basic() -> None:
+    assert _title_to_filename("My Analysis Session") == "my-analysis-session"
+
+
+def test_title_to_filename_strips_special_chars() -> None:
+    assert _title_to_filename("Hello, World!") == "hello-world"
+
+
+def test_title_to_filename_collapses_hyphens() -> None:
+    assert _title_to_filename("foo  --  bar") == "foo-bar"
+
+
+def test_title_to_filename_single_word() -> None:
+    assert _title_to_filename("experiment") == "experiment"
 
 
 # ---------------------------------------------------------------------------
@@ -67,9 +84,9 @@ def test_runlog_new_help_lists_options(capsys) -> None:
     magics.runlog("new --help")
 
     output = capsys.readouterr().out
-    assert "Usage: %runlog new [NAME] [OPTIONS]" in output
+    assert "Usage: %runlog new [TITLE] [OPTIONS]" in output
     assert "-d PATH" in output
-    assert "--output" in output
+    assert "--title" not in output
 
 
 # ---------------------------------------------------------------------------
@@ -85,7 +102,7 @@ def test_runlog_help_lists_commands(capsys) -> None:
     output = capsys.readouterr().out
     assert "Usage: %runlog <command>" in output
     assert "new" in output
-    assert "rename" in output
+    assert "title" in output
     assert "stop" in output
     assert "status" in output
 
@@ -114,30 +131,31 @@ def test_runlog_stop_when_not_running(capsys) -> None:
 
 
 # ---------------------------------------------------------------------------
-# %runlog rename
+# %runlog title
 # ---------------------------------------------------------------------------
 
 
-def test_runlog_rename_updates_path(tmp_path, capsys) -> None:
+def test_runlog_title_renames_file_and_updates_title(tmp_path, capsys) -> None:
     shell = SimpleNamespace()
     magics = RunLogMagics(shell=shell)
 
     from ipy_runlog.logger import RunLogger
     from ipy_runlog.extension import _STATE_ATTR
 
-    log_file = tmp_path / "old.jsonl"
-    log_file.write_text("", encoding="utf-8")
+    log_file = tmp_path / "run.qmd"
+    log_file.write_text('---\ntitle: "old"\ndate: now\n---\n\n', encoding="utf-8")
     logger = RunLogger(None, log_file)
     logger._active = True
 
     setattr(shell, _STATE_ATTR, {"logger": logger, "magics_registered": True})
 
-    with patch.object(logger, "rename") as mock_rename:
-        magics.runlog("rename newname")
-        mock_rename.assert_called_once_with("newname")
+    with patch.object(logger, "rename") as mock_rename, patch.object(logger, "set_title") as mock_set_title:
+        magics.runlog("title 'My Analysis'")
+        mock_rename.assert_called_once_with("my-analysis")
+        mock_set_title.assert_called_once_with("My Analysis")
 
 
-def test_runlog_rename_requires_name(capsys) -> None:
+def test_runlog_title_requires_argument(capsys) -> None:
     shell = SimpleNamespace()
     magics = RunLogMagics(shell=shell)
 
@@ -145,10 +163,24 @@ def test_runlog_rename_requires_name(capsys) -> None:
 
     setattr(shell, _STATE_ATTR, {"logger": None, "magics_registered": True})
 
-    magics.runlog("rename")
+    magics.runlog("title")
 
     output = capsys.readouterr().out
-    assert "a name is required" in output
+    assert "a title is required" in output
+
+
+def test_runlog_title_when_not_running(capsys) -> None:
+    shell = SimpleNamespace()
+    magics = RunLogMagics(shell=shell)
+
+    from ipy_runlog.extension import _STATE_ATTR
+
+    setattr(shell, _STATE_ATTR, {"logger": None, "magics_registered": True})
+
+    magics.runlog("title 'My Session'")
+
+    output = capsys.readouterr().out
+    assert "runlog is not running" in output
 
 
 # ---------------------------------------------------------------------------
@@ -158,12 +190,20 @@ def test_runlog_rename_requires_name(capsys) -> None:
 
 def test_resolve_output_path_uses_default_directory() -> None:
     with patch("ipy_runlog.extension.Path.cwd", return_value=Path("/work")):
-        output_path = _resolve_output_path("analysis", None)
+        output_path = _resolve_output_path("My Analysis", None)
 
-    assert output_path == Path("/work/.ipy_runlog/analysis.jsonl")
+    assert output_path == Path("/work/.ipy_runlog/my-analysis.qmd")
 
 
 def test_resolve_output_path_uses_specified_directory() -> None:
-    output_path = _resolve_output_path("analysis.jsonl", "./logs")
+    output_path = _resolve_output_path("My Analysis", "./logs")
 
-    assert output_path == Path("logs/analysis.jsonl")
+    assert output_path == Path("logs/my-analysis.qmd")
+
+
+def test_resolve_output_path_none_title_uses_timestamp(monkeypatch) -> None:
+    with patch("ipy_runlog.extension.Path.cwd", return_value=Path("/work")):
+        output_path = _resolve_output_path(None, None)
+
+    assert output_path.suffix == ".qmd"
+    assert output_path.parent == Path("/work/.ipy_runlog")
