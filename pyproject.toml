@@ -34,7 +34,11 @@ Repository = "https://github.com/kromiii/ipy-runlog"
 "Bug Tracker" = "https://github.com/kromiii/ipy-runlog/issues"
 
 [dependency-groups]
-dev = ["pytest>=8.0"]
+dev = [
+    "pre-commit>=4.3.0",
+    "pytest>=8.0",
+    "ruff>=0.15.20",
+]
 
 [tool.setuptools]
 package-dir = {"" = "src"}

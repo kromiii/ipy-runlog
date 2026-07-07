@@ -132,7 +132,9 @@ class RunLogMagics(Magics):
         new_name = _title_to_filename(title)
         logger.rename(new_name)
         logger.set_title(title)
-        print(f"runlog title set: {title} (renamed: {old_path.name} -> {logger.output_path.name})")
+        print(
+            f"runlog title set: {title} (renamed: {old_path.name} -> {logger.output_path.name})"
+        )
 
     def _runlog_stop(self) -> None:
         state = self._state()
@@ -232,5 +234,7 @@ def _resolve_output_path(title: str | None, directory: str | None = None) -> Pat
         filename = _title_to_filename(title) + ".qmd"
     else:
         filename = datetime.now().strftime("%Y%m%d-%H%M%S") + ".qmd"
-    output_directory = Path(directory).expanduser() if directory else Path.cwd() / ".ipy_runlog"
+    output_directory = (
+        Path(directory).expanduser() if directory else Path.cwd() / ".ipy_runlog"
+    )
     return output_directory / filename

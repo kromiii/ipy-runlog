@@ -1,6 +1,5 @@
 from types import SimpleNamespace
 
-import pytest
 
 from ipy_runlog.logger import RunLogger, _update_frontmatter
 
@@ -10,7 +9,9 @@ def _read_qmd(path) -> str:
 
 
 def _make_shell():
-    return SimpleNamespace(events=SimpleNamespace(register=lambda *a: None, unregister=lambda *a: None))
+    return SimpleNamespace(
+        events=SimpleNamespace(register=lambda *a: None, unregister=lambda *a: None)
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -38,7 +39,7 @@ def test_rename_moves_file_and_updates_path(tmp_path) -> None:
     output_path = tmp_path / "old.qmd"
     logger = RunLogger(None, output_path)
     logger._active = True
-    output_path.write_text("---\ntitle: \"t\"\n---\n\n", encoding="utf-8")
+    output_path.write_text('---\ntitle: "t"\n---\n\n', encoding="utf-8")
 
     logger.rename("newname")
 
@@ -77,7 +78,7 @@ def test_rename_preserves_existing_qmd_extension(tmp_path) -> None:
 def test_cell_event_ignores_post_run_without_pre_run(tmp_path) -> None:
     output_path = tmp_path / "run.qmd"
     logger = RunLogger(None, output_path)
-    initial_content = "---\ntitle: \"t\"\ndate: now\n---\n\n"
+    initial_content = '---\ntitle: "t"\ndate: now\n---\n\n'
     output_path.write_text(initial_content, encoding="utf-8")
 
     logger._on_post_run_cell(
@@ -95,7 +96,7 @@ def test_cell_event_ignores_post_run_without_pre_run(tmp_path) -> None:
 def test_cell_event_records_code_and_comment(tmp_path) -> None:
     output_path = tmp_path / "run.qmd"
     logger = RunLogger(None, output_path)
-    output_path.write_text("---\ntitle: \"t\"\ndate: now\n---\n\n", encoding="utf-8")
+    output_path.write_text('---\ntitle: "t"\ndate: now\n---\n\n', encoding="utf-8")
 
     logger._on_pre_run_cell(SimpleNamespace(raw_cell="x = 1"))
     logger._on_post_run_cell(
@@ -116,7 +117,7 @@ def test_cell_event_records_code_and_comment(tmp_path) -> None:
 def test_cell_event_records_error_as_stderr_block(tmp_path) -> None:
     output_path = tmp_path / "run.qmd"
     logger = RunLogger(None, output_path)
-    output_path.write_text("---\ntitle: \"t\"\ndate: now\n---\n\n", encoding="utf-8")
+    output_path.write_text('---\ntitle: "t"\ndate: now\n---\n\n', encoding="utf-8")
     error = ValueError("invalid value")
 
     logger._on_pre_run_cell(SimpleNamespace(raw_cell="raise ValueError()"))
@@ -139,7 +140,7 @@ def test_cell_event_records_error_as_stderr_block(tmp_path) -> None:
 def test_cell_event_no_stderr_block_on_success(tmp_path) -> None:
     output_path = tmp_path / "run.qmd"
     logger = RunLogger(None, output_path)
-    output_path.write_text("---\ntitle: \"t\"\ndate: now\n---\n\n", encoding="utf-8")
+    output_path.write_text('---\ntitle: "t"\ndate: now\n---\n\n', encoding="utf-8")
 
     logger._on_pre_run_cell(SimpleNamespace(raw_cell="1 + 1"))
     logger._on_post_run_cell(
@@ -163,7 +164,9 @@ def test_cell_event_no_stderr_block_on_success(tmp_path) -> None:
 def test_set_title_updates_frontmatter(tmp_path) -> None:
     output_path = tmp_path / "run.qmd"
     logger = RunLogger(None, output_path, title="old title")
-    output_path.write_text('---\ntitle: "old title"\ndate: now\n---\n\n', encoding="utf-8")
+    output_path.write_text(
+        '---\ntitle: "old title"\ndate: now\n---\n\n', encoding="utf-8"
+    )
 
     logger.set_title("new title")
 
