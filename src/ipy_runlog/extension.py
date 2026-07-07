@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 import shlex
 from datetime import datetime
 from pathlib import Path
@@ -15,33 +16,34 @@ _HELP = """\
 Usage: %runlog <command> [ARGS]
 
 Commands:
-  new [NAME] [OPTIONS]  Close current log and start a new one.
-  rename NAME           Rename the current log file (recording continues).
-  title TITLE           Update the title in the current log's frontmatter.
-  stop                  Stop recording manually.
-  status                Show current recording status.
-  help                  Show this help message.
+  new [TITLE] [OPTIONS]  Close current log and start a new one.
+  rename NAME            Rename the current log file (recording continues).
+  title TITLE            Update the title in the current log's frontmatter.
+  stop                   Stop recording manually.
+  status                 Show current recording status.
+  help                   Show this help message.
 
 Options for 'new':
-  NAME           Log file name (default: current timestamp)
-  --title TITLE  Title written into the QMD frontmatter (default: "ipy-runlog")
-  -d PATH        Output directory (default: .ipy_runlog/)
-  -h, --help     Show this help message
+  TITLE      Human-readable title; also used to derive the file name.
+             (default: current timestamp)
+  -d PATH    Output directory (default: .ipy_runlog/)
+  -h, --help Show this help message
 """
 
 _NEW_HELP = """\
-Usage: %runlog new [NAME] [OPTIONS]
+Usage: %runlog new [TITLE] [OPTIONS]
 
 Close the current log and start recording to a new file.
 Cell input and errors are recorded.
 
 Arguments:
-  NAME           Log file name (default: current timestamp)
+  TITLE      Human-readable title written into the QMD frontmatter.
+             Also used to derive the file name (e.g. "My Analysis" → my-analysis.qmd).
+             Defaults to a timestamp-based name when omitted.
 
 Options:
-  --title TITLE  Title written into the QMD frontmatter (default: "ipy-runlog")
-  -d PATH        Output directory (default: .ipy_runlog/)
-  -h, --help     Show this help message"""
+  -d PATH    Output directory (default: .ipy_runlog/)
+  -h, --help Show this help message"""
 
 
 @magics_class
@@ -85,7 +87,7 @@ class RunLogMagics(Magics):
             print(_NEW_HELP)
             return
         try:
-            name, directory, title = _parse_new_args(line)
+            title, directory = _parse_new_args(line)
         except ValueError as exc:
             print(f"runlog new: {exc}")
             return
@@ -97,7 +99,7 @@ class RunLogMagics(Magics):
 
         config = load_config(Path.cwd())
         output_path = _resolve_output_path(
-            name or config.get("name"),
+            title,
             directory or config.get("directory"),
         )
         logger = RunLogger(
@@ -184,7 +186,7 @@ def load_ipython_extension(ipython) -> None:
 
     config = load_config(Path.cwd())
     output_path = _resolve_output_path(
-        config.get("name"),
+        None,
         config.get("directory"),
     )
     logger = RunLogger(
@@ -215,15 +217,14 @@ def _help_requested(line: str) -> bool:
         return False
 
 
-def _parse_new_args(line: str) -> tuple[str | None, str | None, str | None]:
+def _parse_new_args(line: str) -> tuple[str | None, str | None]:
     try:
         args = shlex.split(line)
     except ValueError as exc:
         raise ValueError(str(exc)) from exc
 
-    name = None
+    title_parts: list[str] = []
     directory = None
-    title = None
     index = 0
     while index < len(args):
         arg = args[index]
@@ -232,25 +233,28 @@ def _parse_new_args(line: str) -> tuple[str | None, str | None, str | None]:
             if index >= len(args):
                 raise ValueError("-d requires a path")
             directory = args[index]
-        elif arg == "--title":
-            index += 1
-            if index >= len(args):
-                raise ValueError("--title requires a value")
-            title = args[index]
         elif arg.startswith("-"):
             raise ValueError(f"unknown option: {arg}")
-        elif name is None:
-            name = arg
         else:
-            raise ValueError("only one log name may be specified")
+            title_parts.append(arg)
         index += 1
 
-    return name, directory, title
+    title = " ".join(title_parts) or None
+    return title, directory
 
 
-def _resolve_output_path(name: str | None, directory: str | None = None) -> Path:
-    filename = name or datetime.now().strftime("%Y%m%d-%H%M%S")
-    if not filename.endswith(".qmd"):
-        filename = f"{filename}.qmd"
+def _title_to_filename(title: str) -> str:
+    """Derive a filesystem-safe stem from a human-readable title."""
+    slug = re.sub(r"[^\w\s-]", "", title, flags=re.UNICODE).strip().lower()
+    slug = re.sub(r"[\s_]+", "-", slug)
+    slug = re.sub(r"-+", "-", slug).strip("-")
+    return slug or datetime.now().strftime("%Y%m%d-%H%M%S")
+
+
+def _resolve_output_path(title: str | None, directory: str | None = None) -> Path:
+    if title:
+        filename = _title_to_filename(title) + ".qmd"
+    else:
+        filename = datetime.now().strftime("%Y%m%d-%H%M%S") + ".qmd"
     output_directory = Path(directory).expanduser() if directory else Path.cwd() / ".ipy_runlog"
     return output_directory / filename

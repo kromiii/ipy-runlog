@@ -51,9 +51,8 @@ Check the current status:
 Switch to a new log file mid-session (closes the current log):
 
 ```python
-%runlog new experiment-01
-%runlog new experiment-01 --title "Feature extraction run"  # set frontmatter title
-%runlog new experiment-01 -d ./logs                         # custom output directory
+%runlog new "My Analysis Session"        # title + derived filename: my-analysis-session.qmd
+%runlog new "Feature Extraction" -d ./logs  # custom output directory
 ```
 
 Update the title in the current log's frontmatter without interrupting recording:
@@ -104,7 +103,6 @@ Available config keys:
 | Key         | Type   | Default           | Description                          |
 |-------------|--------|-------------------|--------------------------------------|
 | `directory` | string | `.ipy_runlog/`    | Output directory                     |
-| `name`      | string | current timestamp | Default log file name                |
 | `author`    | string | *(none)*          | Author written into the QMD frontmatter |
 
 > **Note**: Python 3.11+ uses the built-in `tomllib`. For Python 3.9–3.10,
