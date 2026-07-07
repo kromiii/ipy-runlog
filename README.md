@@ -88,7 +88,6 @@ You can set defaults in `pyproject.toml`:
 ```toml
 [tool.ipy-runlog]
 directory = "./logs"
-title = "My Project"
 author = "Jane Doe"
 ```
 
@@ -97,7 +96,6 @@ Or in `.ipy_runlog.toml` at the project root (used as a fallback when
 
 ```toml
 directory = "./logs"
-title = "My Project"
 author = "Jane Doe"
 ```
 
@@ -107,7 +105,6 @@ Available config keys:
 |-------------|--------|-------------------|--------------------------------------|
 | `directory` | string | `.ipy_runlog/`    | Output directory                     |
 | `name`      | string | current timestamp | Default log file name                |
-| `title`     | string | `"ipy-runlog"`    | Title written into the QMD frontmatter |
 | `author`    | string | *(none)*          | Author written into the QMD frontmatter |
 
 > **Note**: Python 3.11+ uses the built-in `tomllib`. For Python 3.9–3.10,

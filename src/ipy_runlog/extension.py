@@ -104,7 +104,7 @@ class RunLogMagics(Magics):
             self.shell,
             output_path,
             record_error=True,
-            title=title or config.get("title"),
+            title=title,
             author=config.get("author"),
         )
         logger.start()
@@ -191,7 +191,6 @@ def load_ipython_extension(ipython) -> None:
         ipython,
         output_path,
         record_error=True,
-        title=config.get("title"),
         author=config.get("author"),
     )
     logger.start()
