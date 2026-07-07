@@ -17,30 +17,31 @@ Usage: %runlog <command> [ARGS]
 Commands:
   new [NAME] [OPTIONS]  Close current log and start a new one.
   rename NAME           Rename the current log file (recording continues).
+  title TITLE           Update the title in the current log's frontmatter.
   stop                  Stop recording manually.
   status                Show current recording status.
   help                  Show this help message.
 
 Options for 'new':
-  NAME        Log file name (default: current timestamp)
-  -d PATH     Output directory (default: .ipy_runlog/)
-  --output    Also record cell output (default: off)
-  -h, --help  Show this help message
+  NAME           Log file name (default: current timestamp)
+  --title TITLE  Title written into the QMD frontmatter (default: "ipy-runlog")
+  -d PATH        Output directory (default: .ipy_runlog/)
+  -h, --help     Show this help message
 """
 
 _NEW_HELP = """\
 Usage: %runlog new [NAME] [OPTIONS]
 
 Close the current log and start recording to a new file.
-By default, cell input and errors are recorded.
+Cell input and errors are recorded.
 
 Arguments:
-  NAME        Log file name (default: current timestamp)
+  NAME           Log file name (default: current timestamp)
 
 Options:
-  -d PATH     Output directory (default: .ipy_runlog/)
-  --output    Also record cell output (default: off)
-  -h, --help  Show this help message"""
+  --title TITLE  Title written into the QMD frontmatter (default: "ipy-runlog")
+  -d PATH        Output directory (default: .ipy_runlog/)
+  -h, --help     Show this help message"""
 
 
 @magics_class
@@ -70,6 +71,8 @@ class RunLogMagics(Magics):
             self._runlog_new(rest)
         elif command == "rename":
             self._runlog_rename(rest)
+        elif command == "title":
+            self._runlog_title(rest)
         elif command == "stop":
             self._runlog_stop()
         elif command == "status":
@@ -82,7 +85,7 @@ class RunLogMagics(Magics):
             print(_NEW_HELP)
             return
         try:
-            name, directory, record_output = _parse_new_args(line)
+            name, directory, title = _parse_new_args(line)
         except ValueError as exc:
             print(f"runlog new: {exc}")
             return
@@ -100,8 +103,9 @@ class RunLogMagics(Magics):
         logger = RunLogger(
             self.shell,
             output_path,
-            record_output=record_output or bool(config.get("output", False)),
             record_error=True,
+            title=title or config.get("title"),
+            author=config.get("author"),
         )
         logger.start()
         state["logger"] = logger
@@ -130,6 +134,27 @@ class RunLogMagics(Magics):
         old_path = logger.output_path
         logger.rename(args[0])
         print(f"runlog renamed: {old_path.name} -> {logger.output_path.name}")
+
+    def _runlog_title(self, line: str = "") -> None:
+        try:
+            args = shlex.split(line)
+        except ValueError as exc:
+            print(f"runlog title: {exc}")
+            return
+
+        if not args:
+            print("runlog title: a title is required")
+            return
+
+        title = " ".join(args)
+        state = self._state()
+        logger: RunLogger | None = state.get("logger")
+        if not logger or not logger.active:
+            print("runlog is not running")
+            return
+
+        logger.set_title(title)
+        print(f"runlog title set: {title}")
 
     def _runlog_stop(self) -> None:
         state = self._state()
@@ -165,8 +190,9 @@ def load_ipython_extension(ipython) -> None:
     logger = RunLogger(
         ipython,
         output_path,
-        record_output=bool(config.get("output", False)),
         record_error=True,
+        title=config.get("title"),
+        author=config.get("author"),
     )
     logger.start()
     state["logger"] = logger
@@ -190,7 +216,7 @@ def _help_requested(line: str) -> bool:
         return False
 
 
-def _parse_new_args(line: str) -> tuple[str | None, str | None, bool]:
+def _parse_new_args(line: str) -> tuple[str | None, str | None, str | None]:
     try:
         args = shlex.split(line)
     except ValueError as exc:
@@ -198,7 +224,7 @@ def _parse_new_args(line: str) -> tuple[str | None, str | None, bool]:
 
     name = None
     directory = None
-    record_output = False
+    title = None
     index = 0
     while index < len(args):
         arg = args[index]
@@ -207,8 +233,11 @@ def _parse_new_args(line: str) -> tuple[str | None, str | None, bool]:
             if index >= len(args):
                 raise ValueError("-d requires a path")
             directory = args[index]
-        elif arg == "--output":
-            record_output = True
+        elif arg == "--title":
+            index += 1
+            if index >= len(args):
+                raise ValueError("--title requires a value")
+            title = args[index]
         elif arg.startswith("-"):
             raise ValueError(f"unknown option: {arg}")
         elif name is None:
@@ -217,12 +246,12 @@ def _parse_new_args(line: str) -> tuple[str | None, str | None, bool]:
             raise ValueError("only one log name may be specified")
         index += 1
 
-    return name, directory, record_output
+    return name, directory, title
 
 
 def _resolve_output_path(name: str | None, directory: str | None = None) -> Path:
     filename = name or datetime.now().strftime("%Y%m%d-%H%M%S")
-    if not filename.endswith(".jsonl"):
-        filename = f"{filename}.jsonl"
+    if not filename.endswith(".qmd"):
+        filename = f"{filename}.qmd"
     output_directory = Path(directory).expanduser() if directory else Path.cwd() / ".ipy_runlog"
     return output_directory / filename

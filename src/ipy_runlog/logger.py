@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import atexit
-import json
 import traceback
 from datetime import datetime
 from pathlib import Path
@@ -14,17 +13,20 @@ class RunLogger:
         ipython: Any,
         output_path: Path,
         *,
-        record_output: bool = False,
         record_error: bool = True,
+        title: str | None = None,
+        author: str | None = None,
     ) -> None:
         self._ipython = ipython
         self.output_path = output_path
-        self._record_output = record_output
         self._record_error = record_error
         self._active = False
         self._last_started_at: str | None = None
         self._last_code: str = ""
         self._last_started_dt: datetime | None = None
+        self._title: str = title or "ipy-runlog"
+        self._author: str | None = author
+        self._cell_count: int = 0
 
     @property
     def active(self) -> bool:
@@ -34,19 +36,14 @@ class RunLogger:
         if self._active:
             return
         self.output_path.parent.mkdir(parents=True, exist_ok=True)
+        self._cell_count = 0
+        started_at = _now_iso()
+        self._last_started_at = started_at
+        self._write_header(started_at)
         self._ipython.events.register("pre_run_cell", self._on_pre_run_cell)
         self._ipython.events.register("post_run_cell", self._on_post_run_cell)
         self._active = True
         atexit.register(self._on_exit)
-        started_at = _now_iso()
-        self._last_started_at = started_at
-        self._append_event(
-            {
-                "event": "recording_started",
-                "started_at": started_at,
-                "path": str(self.output_path),
-            }
-        )
 
     def stop(self) -> None:
         if not self._active:
@@ -55,28 +52,20 @@ class RunLogger:
         self._ipython.events.unregister("pre_run_cell", self._on_pre_run_cell)
         self._ipython.events.unregister("post_run_cell", self._on_post_run_cell)
         self._active = False
-        self._append_event(
-            {
-                "event": "recording_stopped",
-                "stopped_at": _now_iso(),
-                "path": str(self.output_path),
-            }
-        )
+        _update_frontmatter(self.output_path, "recording_stopped", _now_iso())
 
     def rename(self, new_name: str) -> None:
         """Rename the current log file. Recording continues uninterrupted."""
-        if not new_name.endswith(".jsonl"):
-            new_name = f"{new_name}.jsonl"
+        if not new_name.endswith(".qmd"):
+            new_name = f"{new_name}.qmd"
         new_path = self.output_path.parent / new_name
         self.output_path.rename(new_path)
         self.output_path = new_path
-        self._append_event(
-            {
-                "event": "recording_renamed",
-                "renamed_at": _now_iso(),
-                "path": str(self.output_path),
-            }
-        )
+
+    def set_title(self, title: str) -> None:
+        """Update the title in the QMD frontmatter. Can be called while recording."""
+        self._title = title
+        _update_frontmatter(self.output_path, "title", f'"{title}"')
 
     def _on_exit(self) -> None:
         """Called by atexit when the Python process exits normally."""
@@ -85,14 +74,7 @@ class RunLogger:
         self._ipython.events.unregister("pre_run_cell", self._on_pre_run_cell)
         self._ipython.events.unregister("post_run_cell", self._on_post_run_cell)
         self._active = False
-        self._append_event(
-            {
-                "event": "recording_stopped",
-                "stopped_at": _now_iso(),
-                "path": str(self.output_path),
-                "reason": "session_ended",
-            }
-        )
+        _update_frontmatter(self.output_path, "recording_stopped", _now_iso())
 
     def _on_pre_run_cell(self, info: Any) -> None:
         self._last_code = getattr(info, "raw_cell", "") or ""
@@ -100,50 +82,78 @@ class RunLogger:
         self._last_started_at = self._last_started_dt.isoformat(timespec="microseconds")
 
     def _on_post_run_cell(self, result: Any) -> None:
+        self._cell_count += 1
         started_dt = self._last_started_dt or datetime.now()
         started_at = self._last_started_at or started_dt.isoformat(timespec="microseconds")
         ended_dt = datetime.now()
         error = getattr(result, "error_in_exec", None) or getattr(result, "error_before_exec", None)
         status = "failed" if error else "success"
-        event = {
-            "event": "cell_executed",
-            "started_at": started_at,
-            "ended_at": ended_dt.isoformat(timespec="microseconds"),
-            "elapsed_sec": (ended_dt - started_dt).total_seconds(),
-            "status": status,
-            "execution_count": getattr(result, "execution_count", None),
-            "code": self._last_code,
-        }
-        if self._record_output:
-            event["output"] = _format_output(getattr(result, "result", None))
-        if self._record_error:
-            event["error"] = _format_error(error)
-        self._append_event(event)
+        elapsed = (ended_dt - started_dt).total_seconds()
 
-    def _append_event(self, payload: dict[str, Any]) -> None:
+        parts: list[str] = []
+        parts.append(
+            f"<!-- cell: started={started_at},"
+            f" ended={ended_dt.isoformat(timespec='microseconds')},"
+            f" status={status}, elapsed={elapsed:.3f}s -->"
+        )
+        parts.append(f"```python\n{self._last_code}\n```")
+
+        if self._record_error and error is not None:
+            parts.append(_format_error_block(error))
+
         with self.output_path.open("a", encoding="utf-8") as f:
-            json.dump(payload, f, ensure_ascii=False)
-            f.write("\n")
+            f.write("\n".join(parts) + "\n\n")
+
+    def _write_header(self, started_at: str) -> None:
+        lines = ["---"]
+        lines.append(f'title: "{self._title}"')
+        if self._author:
+            lines.append(f'author: "{self._author}"')
+        lines.append(f"recording_started: {started_at}")
+        lines.append("---")
+        lines.append("")
+        self.output_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
 
 
 def _now_iso() -> str:
     return datetime.now().isoformat(timespec="microseconds")
 
 
-def _format_error(error: BaseException | None) -> dict[str, str] | None:
-    if error is None:
-        return None
-    tb = "".join(traceback.format_exception(type(error), error, error.__traceback__))
-    return {
-        "type": type(error).__name__,
-        "message": str(error),
-        "traceback": tb,
-    }
-
-
-def _format_output(output: Any) -> Any:
+def _update_frontmatter(path: Path, key: str, value: str) -> None:
+    """Insert or replace a key-value pair in the YAML frontmatter of a QMD file."""
     try:
-        json.dumps(output, ensure_ascii=False)
-    except (TypeError, ValueError):
-        return repr(output)
-    return output
+        content = path.read_text(encoding="utf-8")
+    except FileNotFoundError:
+        return
+
+    if not content.startswith("---\n"):
+        return
+
+    close_idx = content.find("\n---\n", 4)
+    if close_idx == -1:
+        return
+
+    frontmatter_body = content[4:close_idx]
+    rest = content[close_idx + 5:]  # skip "\n---\n"
+
+    new_key_line = f"{key}: {value}"
+    lines = frontmatter_body.split("\n")
+    found = False
+    new_lines: list[str] = []
+    for line in lines:
+        if line.startswith(f"{key}:"):
+            new_lines.append(new_key_line)
+            found = True
+        else:
+            new_lines.append(line)
+
+    if not found:
+        new_lines.append(new_key_line)
+
+    new_content = "---\n" + "\n".join(new_lines) + "\n---\n" + rest
+    path.write_text(new_content, encoding="utf-8")
+
+
+def _format_error_block(error: BaseException) -> str:
+    tb = "".join(traceback.format_exception(type(error), error, error.__traceback__))
+    return f"```stderr\n{tb.rstrip()}\n```"
