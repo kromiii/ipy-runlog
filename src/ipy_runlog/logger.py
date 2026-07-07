@@ -52,7 +52,6 @@ class RunLogger:
         self._ipython.events.unregister("pre_run_cell", self._on_pre_run_cell)
         self._ipython.events.unregister("post_run_cell", self._on_post_run_cell)
         self._active = False
-        _update_frontmatter(self.output_path, "recording_stopped", _now_iso())
 
     def rename(self, new_name: str) -> None:
         """Rename the current log file. Recording continues uninterrupted."""
@@ -74,7 +73,6 @@ class RunLogger:
         self._ipython.events.unregister("pre_run_cell", self._on_pre_run_cell)
         self._ipython.events.unregister("post_run_cell", self._on_post_run_cell)
         self._active = False
-        _update_frontmatter(self.output_path, "recording_stopped", _now_iso())
 
     def _on_pre_run_cell(self, info: Any) -> None:
         self._last_code = getattr(info, "raw_cell", "") or ""
@@ -82,8 +80,10 @@ class RunLogger:
         self._last_started_at = self._last_started_dt.isoformat(timespec="microseconds")
 
     def _on_post_run_cell(self, result: Any) -> None:
+        if self._last_started_dt is None:
+            return
         self._cell_count += 1
-        started_dt = self._last_started_dt or datetime.now()
+        started_dt = self._last_started_dt
         started_at = self._last_started_at or started_dt.isoformat(timespec="microseconds")
         ended_dt = datetime.now()
         error = getattr(result, "error_in_exec", None) or getattr(result, "error_before_exec", None)
@@ -104,12 +104,14 @@ class RunLogger:
         with self.output_path.open("a", encoding="utf-8") as f:
             f.write("\n".join(parts) + "\n\n")
 
+        self._last_started_dt = None
+
     def _write_header(self, started_at: str) -> None:
         lines = ["---"]
         lines.append(f'title: "{self._title}"')
         if self._author:
             lines.append(f'author: "{self._author}"')
-        lines.append(f"recording_started: {started_at}")
+        lines.append(f"date: {started_at}")
         lines.append("---")
         lines.append("")
         self.output_path.write_text("\n".join(lines) + "\n", encoding="utf-8")

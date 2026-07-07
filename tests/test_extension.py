@@ -182,7 +182,7 @@ def test_runlog_title_calls_set_title(tmp_path, capsys) -> None:
     from ipy_runlog.extension import _STATE_ATTR
 
     log_file = tmp_path / "run.qmd"
-    log_file.write_text('---\ntitle: "old"\nrecording_started: now\n---\n\n', encoding="utf-8")
+    log_file.write_text('---\ntitle: "old"\ndate: now\n---\n\n', encoding="utf-8")
     logger = RunLogger(None, log_file)
     logger._active = True
 

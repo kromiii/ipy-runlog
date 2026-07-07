@@ -117,8 +117,7 @@ The extension uses IPython event handlers to monitor cell execution:
 
 Each cell is appended to the QMD file as an HTML comment with execution
 metadata followed by a fenced Python code block. Errors are recorded in a
-fenced `stderr` block. On normal session exit, the `recording_stopped`
-timestamp is written into the YAML frontmatter automatically via `atexit`.
+fenced `stderr` block.
 
 ## Log Format
 
@@ -129,8 +128,7 @@ file begins with a YAML frontmatter block:
 ---
 title: "My Session"
 author: "Jane Doe"
-recording_started: 2026-06-11T12:34:56.789012
-recording_stopped: 2026-06-11T13:00:00.000000
+date: 2026-06-11T12:34:56.789012
 ---
 ```
 

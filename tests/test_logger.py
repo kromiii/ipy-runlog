@@ -18,62 +18,15 @@ def _make_shell():
 # ---------------------------------------------------------------------------
 
 
-def test_start_writes_frontmatter_with_recording_started(tmp_path) -> None:
+def test_start_writes_frontmatter_with_date(tmp_path) -> None:
     output_path = tmp_path / "run.qmd"
     logger = RunLogger(_make_shell(), output_path)
 
     logger.start()
 
     content = _read_qmd(output_path)
-    assert "recording_started:" in content
+    assert "date:" in content
     assert content.startswith("---\n")
-
-
-def test_stop_adds_recording_stopped_to_frontmatter(tmp_path) -> None:
-    output_path = tmp_path / "run.qmd"
-    logger = RunLogger(_make_shell(), output_path)
-    logger.start()
-
-    logger.stop()
-
-    content = _read_qmd(output_path)
-    assert "recording_stopped:" in content
-
-
-def test_stop_does_not_add_recording_stopped_twice(tmp_path) -> None:
-    output_path = tmp_path / "run.qmd"
-    logger = RunLogger(_make_shell(), output_path)
-    logger.start()
-    logger.stop()
-
-    # calling stop again should be a no-op (active is False)
-    logger.stop()
-
-    content = _read_qmd(output_path)
-    assert content.count("recording_stopped:") == 1
-
-
-def test_on_exit_adds_recording_stopped_to_frontmatter(tmp_path) -> None:
-    output_path = tmp_path / "run.qmd"
-    logger = RunLogger(_make_shell(), output_path)
-    logger.start()
-
-    logger._on_exit()
-
-    content = _read_qmd(output_path)
-    assert "recording_stopped:" in content
-
-
-def test_on_exit_is_idempotent_after_stop(tmp_path) -> None:
-    output_path = tmp_path / "run.qmd"
-    logger = RunLogger(_make_shell(), output_path)
-    logger.start()
-    logger.stop()
-
-    logger._on_exit()
-
-    content = _read_qmd(output_path)
-    assert content.count("recording_stopped:") == 1
 
 
 # ---------------------------------------------------------------------------
@@ -121,10 +74,28 @@ def test_rename_preserves_existing_qmd_extension(tmp_path) -> None:
 # ---------------------------------------------------------------------------
 
 
+def test_cell_event_ignores_post_run_without_pre_run(tmp_path) -> None:
+    output_path = tmp_path / "run.qmd"
+    logger = RunLogger(None, output_path)
+    initial_content = "---\ntitle: \"t\"\ndate: now\n---\n\n"
+    output_path.write_text(initial_content, encoding="utf-8")
+
+    logger._on_post_run_cell(
+        SimpleNamespace(
+            execution_count=1,
+            result=None,
+            error_in_exec=None,
+            error_before_exec=None,
+        )
+    )
+
+    assert _read_qmd(output_path) == initial_content
+
+
 def test_cell_event_records_code_and_comment(tmp_path) -> None:
     output_path = tmp_path / "run.qmd"
     logger = RunLogger(None, output_path)
-    output_path.write_text("---\ntitle: \"t\"\nrecording_started: now\n---\n\n", encoding="utf-8")
+    output_path.write_text("---\ntitle: \"t\"\ndate: now\n---\n\n", encoding="utf-8")
 
     logger._on_pre_run_cell(SimpleNamespace(raw_cell="x = 1"))
     logger._on_post_run_cell(
@@ -145,7 +116,7 @@ def test_cell_event_records_code_and_comment(tmp_path) -> None:
 def test_cell_event_records_error_as_stderr_block(tmp_path) -> None:
     output_path = tmp_path / "run.qmd"
     logger = RunLogger(None, output_path)
-    output_path.write_text("---\ntitle: \"t\"\nrecording_started: now\n---\n\n", encoding="utf-8")
+    output_path.write_text("---\ntitle: \"t\"\ndate: now\n---\n\n", encoding="utf-8")
     error = ValueError("invalid value")
 
     logger._on_pre_run_cell(SimpleNamespace(raw_cell="raise ValueError()"))
@@ -168,7 +139,7 @@ def test_cell_event_records_error_as_stderr_block(tmp_path) -> None:
 def test_cell_event_no_stderr_block_on_success(tmp_path) -> None:
     output_path = tmp_path / "run.qmd"
     logger = RunLogger(None, output_path)
-    output_path.write_text("---\ntitle: \"t\"\nrecording_started: now\n---\n\n", encoding="utf-8")
+    output_path.write_text("---\ntitle: \"t\"\ndate: now\n---\n\n", encoding="utf-8")
 
     logger._on_pre_run_cell(SimpleNamespace(raw_cell="1 + 1"))
     logger._on_post_run_cell(
@@ -192,7 +163,7 @@ def test_cell_event_no_stderr_block_on_success(tmp_path) -> None:
 def test_set_title_updates_frontmatter(tmp_path) -> None:
     output_path = tmp_path / "run.qmd"
     logger = RunLogger(None, output_path, title="old title")
-    output_path.write_text('---\ntitle: "old title"\nrecording_started: now\n---\n\n', encoding="utf-8")
+    output_path.write_text('---\ntitle: "old title"\ndate: now\n---\n\n', encoding="utf-8")
 
     logger.set_title("new title")
 
