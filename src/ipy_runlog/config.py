@@ -1,19 +1,8 @@
 from __future__ import annotations
 
-import sys
+import tomllib
 from pathlib import Path
 from typing import Any
-
-if sys.version_info >= (3, 11):
-    import tomllib
-else:
-    try:
-        import tomllib  # type: ignore[no-redef]
-    except ImportError:
-        try:
-            import tomli as tomllib  # type: ignore[no-redef]
-        except ImportError:
-            tomllib = None  # type: ignore[assignment]
 
 
 def load_config(cwd: Path) -> dict[str, Any]:
@@ -23,8 +12,6 @@ def load_config(cwd: Path) -> dict[str, Any]:
       1. [tool.ipy-runlog] in pyproject.toml
       2. .ipy_runlog.toml in cwd
     """
-    if tomllib is None:
-        return {}
 
     # 1. pyproject.toml
     pyproject = cwd / "pyproject.toml"
