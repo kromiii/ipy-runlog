@@ -61,6 +61,12 @@ Update configuration options in the current log's frontmatter (and rename the lo
 %runlog set --title "My Analysis Session" --author "Jane Doe"
 ```
 
+Write a comment directly to the active QMD log file (to leave a text note between execution records):
+
+```python
+%runlog comment "We started training the model here."
+```
+
 Stop recording manually:
 
 ```python
