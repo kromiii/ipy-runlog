@@ -111,7 +111,7 @@ def test_cell_event_records_code_and_comment(tmp_path) -> None:
     content = _read_qmd(output_path)
     assert "<!-- cell:" in content
     assert "status=success" in content
-    assert "```python\nx = 1\n```" in content
+    assert "```{python}\nx = 1\n```" in content
 
 
 def test_cell_event_records_error_as_stderr_block(tmp_path) -> None:

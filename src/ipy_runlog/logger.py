@@ -100,7 +100,7 @@ class RunLogger:
             f" ended={ended_dt.isoformat(timespec='microseconds')},"
             f" status={status}, elapsed={elapsed:.3f}s -->"
         )
-        parts.append(f"```python\n{self._last_code}\n```")
+        parts.append(f"```{{python}}\n{self._last_code}\n```")
 
         if self._record_error and error is not None:
             parts.append(_format_error_block(error))
