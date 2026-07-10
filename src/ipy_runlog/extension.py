@@ -19,6 +19,7 @@ Usage: %runlog <command> [ARGS]
 Commands:
   new [TITLE] [OPTIONS]  Close current log and start a new one.
   set [OPTIONS]          Update configuration options for the current log.
+  comment [TEXT]         Write a comment directly to the active log.
   stop                   Stop recording manually.
   status                 Show current recording status.
   help                   Show this help message.
@@ -55,6 +56,14 @@ Options:
   --author AUTHOR  Update the author name.
   -h, --help       Show this help message"""
 
+_COMMENT_HELP = """\
+Usage: %runlog comment <TEXT>
+
+Write a comment directly to the active QMD log file.
+
+Arguments:
+  TEXT       The comment text to write. Can be enclosed in quotes."""
+
 
 @magics_class
 class RunLogMagics(Magics):
@@ -84,6 +93,8 @@ class RunLogMagics(Magics):
             self._runlog_new(rest)
         elif command == "set":
             self._runlog_set(rest)
+        elif command == "comment":
+            self._runlog_comment(rest)
         elif command == "stop":
             self._runlog_stop()
         elif command == "status":
@@ -160,6 +171,25 @@ class RunLogMagics(Magics):
             author = options["author"]
             logger.set_author(author)
             print(f"runlog author set: {author}")
+
+    def _runlog_comment(self, line: str = "") -> None:
+        if _help_requested(line):
+            print(_COMMENT_HELP)
+            return
+
+        state = self._state()
+        logger: RunLogger | None = state.get("logger")
+        if not logger or not logger.active:
+            print("runlog is not running")
+            return
+
+        try:
+            comment = _parse_comment(line)
+        except ValueError as exc:
+            print(f"runlog comment: {exc}")
+            return
+
+        logger.write_comment(comment)
 
     def _runlog_stop(self) -> None:
         state = self._state()
@@ -299,3 +329,15 @@ def _parse_set_args(line: str) -> dict[str, str]:
     if parsed.author is not None:
         result["author"] = parsed.author
     return result
+
+
+def _parse_comment(line: str) -> str:
+    comment = line.strip()
+    if not comment:
+        raise ValueError("comment text is required")
+    if len(comment) >= 2:
+        if (comment[0] == '"' and comment[-1] == '"') or (
+            comment[0] == "'" and comment[-1] == "'"
+        ):
+            return comment[1:-1]
+    return comment

@@ -8,6 +8,7 @@ import pytest
 
 from ipy_runlog.extension import (
     RunLogMagics,
+    _parse_comment,
     _parse_new_args,
     _parse_set_args,
     _resolve_output_path,
@@ -148,6 +149,7 @@ def test_runlog_help_lists_commands(capsys) -> None:
     assert "Usage: %runlog <command>" in output
     assert "new" in output
     assert "set" in output
+    assert "comment" in output
     assert "stop" in output
     assert "status" in output
 
@@ -260,3 +262,95 @@ def test_resolve_output_path_none_title_uses_timestamp(monkeypatch) -> None:
 
     assert output_path.suffix == ".qmd"
     assert output_path.parent == Path("/work/.ipy_runlog")
+
+
+# ---------------------------------------------------------------------------
+# _parse_comment
+# ---------------------------------------------------------------------------
+
+
+def test_parse_comment_basic() -> None:
+    assert _parse_comment("hogehoge") == "hogehoge"
+
+
+def test_parse_comment_stripped_double_quotes() -> None:
+    assert _parse_comment('"hogehoge"') == "hogehoge"
+
+
+def test_parse_comment_stripped_single_quotes() -> None:
+    assert _parse_comment("'hogehoge'") == "hogehoge"
+
+
+def test_parse_comment_unmatched_inner_quote() -> None:
+    assert _parse_comment("Let's do this") == "Let's do this"
+
+
+def test_parse_comment_empty_raises() -> None:
+    with pytest.raises(ValueError, match="comment text is required"):
+        _parse_comment("")
+    with pytest.raises(ValueError, match="comment text is required"):
+        _parse_comment("   ")
+
+
+# ---------------------------------------------------------------------------
+# %runlog comment
+# ---------------------------------------------------------------------------
+
+
+def test_runlog_comment_when_not_running(capsys) -> None:
+    shell = SimpleNamespace()
+    magics = RunLogMagics(shell=shell)
+    from ipy_runlog.extension import _STATE_ATTR
+
+    setattr(shell, _STATE_ATTR, {"logger": None, "magics_registered": True})
+
+    magics.runlog("comment hogehoge")
+
+    output = capsys.readouterr().out
+    assert "runlog is not running" in output
+
+
+def test_runlog_comment_help(capsys) -> None:
+    shell = SimpleNamespace()
+    magics = RunLogMagics(shell=shell)
+    from ipy_runlog.extension import _STATE_ATTR
+
+    setattr(shell, _STATE_ATTR, {"logger": None, "magics_registered": True})
+
+    magics.runlog("comment --help")
+
+    output = capsys.readouterr().out
+    assert "Usage: %runlog comment <TEXT>" in output
+
+
+def test_runlog_comment_empty_text(capsys) -> None:
+    shell = SimpleNamespace()
+    magics = RunLogMagics(shell=shell)
+    from ipy_runlog.logger import RunLogger
+    from ipy_runlog.extension import _STATE_ATTR
+
+    logger = RunLogger(None, Path("dummy.qmd"))
+    logger._active = True
+    setattr(shell, _STATE_ATTR, {"logger": logger, "magics_registered": True})
+
+    magics.runlog("comment")
+
+    output = capsys.readouterr().out
+    assert "runlog comment: comment text is required" in output
+
+
+def test_runlog_comment_writes_to_logger(tmp_path) -> None:
+    shell = SimpleNamespace()
+    magics = RunLogMagics(shell=shell)
+    from ipy_runlog.logger import RunLogger
+    from ipy_runlog.extension import _STATE_ATTR
+
+    log_file = tmp_path / "run.qmd"
+    log_file.write_text('---\ntitle: "t"\ndate: now\n---\n\n', encoding="utf-8")
+    logger = RunLogger(None, log_file)
+    logger._active = True
+    setattr(shell, _STATE_ATTR, {"logger": logger, "magics_registered": True})
+
+    with patch.object(logger, "write_comment") as mock_write_comment:
+        magics.runlog('comment "my comment"')
+        mock_write_comment.assert_called_once_with("my comment")

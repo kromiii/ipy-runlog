@@ -320,3 +320,33 @@ def test_update_frontmatter_does_nothing_if_file_missing(tmp_path) -> None:
     path = tmp_path / "nonexistent.qmd"
     # Should not raise
     _update_frontmatter(path, "key", "value")
+
+
+# ---------------------------------------------------------------------------
+# write_comment
+# ---------------------------------------------------------------------------
+
+
+def test_write_comment_appends_to_file(tmp_path) -> None:
+    output_path = tmp_path / "run.qmd"
+    logger = RunLogger(None, output_path)
+    logger._active = True
+    output_path.write_text('---\ntitle: "t"\ndate: now\n---\n\n', encoding="utf-8")
+
+    logger.write_comment("hello comment")
+
+    content = _read_qmd(output_path)
+    assert content.endswith("hello comment\n\n")
+
+
+def test_write_comment_does_nothing_when_inactive(tmp_path) -> None:
+    output_path = tmp_path / "run.qmd"
+    logger = RunLogger(None, output_path)
+    logger._active = False
+    initial_content = '---\ntitle: "t"\ndate: now\n---\n\n'
+    output_path.write_text(initial_content, encoding="utf-8")
+
+    logger.write_comment("hello comment")
+
+    content = _read_qmd(output_path)
+    assert content == initial_content

@@ -70,6 +70,13 @@ class RunLogger:
         self._author = author
         _update_frontmatter(self.output_path, "author", f'"{author}"')
 
+    def write_comment(self, comment: str) -> None:
+        """Write a comment directly to the QMD file."""
+        if not self._active:
+            return
+        with self.output_path.open("a", encoding="utf-8") as f:
+            f.write(comment + "\n\n")
+
     def _on_exit(self) -> None:
         """Called by atexit when the Python process exits normally."""
         if not self._active:
