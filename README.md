@@ -107,8 +107,7 @@ The extension uses IPython event handlers to monitor cell execution:
 - **`post_run_cell`**: Triggered after a cell finishes executing. The extension calculates the elapsed time and determines if it was successful or failed (including error details).
 
 Each cell is appended to the QMD file as an HTML comment with execution
-metadata followed by a fenced Python code block. Errors are recorded in a
-fenced `stderr` block.
+metadata followed by a fenced Python code block. For cells that failed during execution, the `#| error: true` chunk option is included so that rendering with Quarto does not halt.
 
 ## Log Format
 
@@ -133,13 +132,8 @@ x = 1 + 1
 
 <!-- cell: started=2026-06-11T12:36:00.000000, ended=2026-06-11T12:36:00.005000, status=failed, elapsed=0.005s -->
 ```python
+#| error: true
 print(undefined_variable)
-```
-
-```stderr
-Traceback (most recent call last):
-  ...
-NameError: name 'undefined_variable' is not defined
 ```
 
 ````

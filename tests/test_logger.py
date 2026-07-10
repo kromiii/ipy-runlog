@@ -114,7 +114,7 @@ def test_cell_event_records_code_and_comment(tmp_path) -> None:
     assert "```{python}\nx = 1\n```" in content
 
 
-def test_cell_event_records_error_as_stderr_block(tmp_path) -> None:
+def test_cell_event_records_error_as_chunk_option(tmp_path) -> None:
     output_path = tmp_path / "run.qmd"
     logger = RunLogger(None, output_path)
     output_path.write_text('---\ntitle: "t"\ndate: now\n---\n\n', encoding="utf-8")
@@ -132,9 +132,9 @@ def test_cell_event_records_error_as_stderr_block(tmp_path) -> None:
 
     content = _read_qmd(output_path)
     assert "status=failed" in content
-    assert "```stderr" in content
-    assert "ValueError" in content
-    assert "invalid value" in content
+    assert "#| error: true" in content
+    assert "```stderr" not in content
+    assert "invalid value" not in content
 
 
 def test_cell_event_no_stderr_block_on_success(tmp_path) -> None:

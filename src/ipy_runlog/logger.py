@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import atexit
-import traceback
 from datetime import datetime
 from pathlib import Path
 from typing import Any
@@ -100,10 +99,10 @@ class RunLogger:
             f" ended={ended_dt.isoformat(timespec='microseconds')},"
             f" status={status}, elapsed={elapsed:.3f}s -->"
         )
-        parts.append(f"```{{python}}\n{self._last_code}\n```")
-
         if self._record_error and error is not None:
-            parts.append(_format_error_block(error))
+            parts.append(f"```{{python}}\n#| error: true\n{self._last_code}\n```")
+        else:
+            parts.append(f"```{{python}}\n{self._last_code}\n```")
 
         with self.output_path.open("a", encoding="utf-8") as f:
             f.write("\n".join(parts) + "\n\n")
@@ -158,8 +157,3 @@ def _update_frontmatter(path: Path, key: str, value: str) -> None:
 
     new_content = "---\n" + "\n".join(new_lines) + "\n---\n" + rest
     path.write_text(new_content, encoding="utf-8")
-
-
-def _format_error_block(error: BaseException) -> str:
-    tb = "".join(traceback.format_exception(type(error), error, error.__traceback__))
-    return f"```stderr\n{tb.rstrip()}\n```"
