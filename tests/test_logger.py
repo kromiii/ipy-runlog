@@ -249,6 +249,21 @@ def test_set_title_updates_frontmatter(tmp_path) -> None:
     assert "old title" not in content
 
 
+def test_set_author_updates_frontmatter(tmp_path) -> None:
+    output_path = tmp_path / "run.qmd"
+    logger = RunLogger(None, output_path, author="old author")
+    output_path.write_text(
+        '---\ntitle: "title"\nauthor: "old author"\ndate: now\n---\n\n',
+        encoding="utf-8",
+    )
+
+    logger.set_author("new author")
+
+    content = _read_qmd(output_path)
+    assert 'author: "new author"' in content
+    assert "old author" not in content
+
+
 # ---------------------------------------------------------------------------
 # author in frontmatter
 # ---------------------------------------------------------------------------

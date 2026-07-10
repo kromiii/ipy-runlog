@@ -65,6 +65,11 @@ class RunLogger:
         self._title = title
         _update_frontmatter(self.output_path, "title", f'"{title}"')
 
+    def set_author(self, author: str) -> None:
+        """Update the author in the QMD frontmatter. Can be called while recording."""
+        self._author = author
+        _update_frontmatter(self.output_path, "author", f'"{author}"')
+
     def _on_exit(self) -> None:
         """Called by atexit when the Python process exits normally."""
         if not self._active:

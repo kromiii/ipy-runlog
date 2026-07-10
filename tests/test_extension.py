@@ -9,6 +9,7 @@ import pytest
 from ipy_runlog.extension import (
     RunLogMagics,
     _parse_new_args,
+    _parse_set_args,
     _resolve_output_path,
     _title_to_filename,
 )
@@ -55,6 +56,45 @@ def test_parse_new_args_title_requires_value() -> None:
     # --title no longer exists; passing it should raise unknown option
     with pytest.raises(ValueError, match="unknown option: --title"):
         _parse_new_args("--title")
+
+
+# ---------------------------------------------------------------------------
+# _parse_set_args
+# ---------------------------------------------------------------------------
+
+
+def test_parse_set_args_title() -> None:
+    assert _parse_set_args("--title 'My Title'") == {"title": "My Title"}
+
+
+def test_parse_set_args_author() -> None:
+    assert _parse_set_args("--author 'Jane Doe'") == {"author": "Jane Doe"}
+
+
+def test_parse_set_args_both() -> None:
+    assert _parse_set_args("--title='My Title' --author='Jane Doe'") == {
+        "title": "My Title",
+        "author": "Jane Doe",
+    }
+
+
+def test_parse_set_args_empty() -> None:
+    assert _parse_set_args("") == {}
+
+
+def test_parse_set_args_rejects_unknown_option() -> None:
+    with pytest.raises(ValueError, match="unknown option: --foo"):
+        _parse_set_args("--foo bar")
+
+
+def test_parse_set_args_requires_value() -> None:
+    with pytest.raises(ValueError, match="expected one argument"):
+        _parse_set_args("--title")
+
+
+def test_parse_set_args_help() -> None:
+    with pytest.raises(ValueError, match="show_help"):
+        _parse_set_args("--help")
 
 
 # ---------------------------------------------------------------------------
@@ -107,7 +147,7 @@ def test_runlog_help_lists_commands(capsys) -> None:
     output = capsys.readouterr().out
     assert "Usage: %runlog <command>" in output
     assert "new" in output
-    assert "title" in output
+    assert "set" in output
     assert "stop" in output
     assert "status" in output
 
@@ -136,11 +176,11 @@ def test_runlog_stop_when_not_running(capsys) -> None:
 
 
 # ---------------------------------------------------------------------------
-# %runlog title
+# %runlog set
 # ---------------------------------------------------------------------------
 
 
-def test_runlog_title_renames_file_and_updates_title(tmp_path, capsys) -> None:
+def test_runlog_set_updates_title_and_author(tmp_path, capsys) -> None:
     shell = SimpleNamespace()
     magics = RunLogMagics(shell=shell)
 
@@ -157,27 +197,32 @@ def test_runlog_title_renames_file_and_updates_title(tmp_path, capsys) -> None:
     with (
         patch.object(logger, "rename") as mock_rename,
         patch.object(logger, "set_title") as mock_set_title,
+        patch.object(logger, "set_author") as mock_set_author,
     ):
-        magics.runlog("title 'My Analysis'")
+        magics.runlog("set --title 'My Analysis' --author 'Jane Doe'")
         mock_rename.assert_called_once_with("my-analysis")
         mock_set_title.assert_called_once_with("My Analysis")
+        mock_set_author.assert_called_once_with("Jane Doe")
 
 
-def test_runlog_title_requires_argument(capsys) -> None:
+def test_runlog_set_requires_at_least_one_option(capsys) -> None:
     shell = SimpleNamespace()
     magics = RunLogMagics(shell=shell)
 
+    from ipy_runlog.logger import RunLogger
     from ipy_runlog.extension import _STATE_ATTR
 
-    setattr(shell, _STATE_ATTR, {"logger": None, "magics_registered": True})
+    logger = RunLogger(None, Path("dummy.qmd"))
+    logger._active = True
+    setattr(shell, _STATE_ATTR, {"logger": logger, "magics_registered": True})
 
-    magics.runlog("title")
+    magics.runlog("set")
 
     output = capsys.readouterr().out
-    assert "a title is required" in output
+    assert "at least one option must be specified" in output
 
 
-def test_runlog_title_when_not_running(capsys) -> None:
+def test_runlog_set_when_not_running(capsys) -> None:
     shell = SimpleNamespace()
     magics = RunLogMagics(shell=shell)
 
@@ -185,7 +230,7 @@ def test_runlog_title_when_not_running(capsys) -> None:
 
     setattr(shell, _STATE_ATTR, {"logger": None, "magics_registered": True})
 
-    magics.runlog("title 'My Session'")
+    magics.runlog("set --title 'My Session'")
 
     output = capsys.readouterr().out
     assert "runlog is not running" in output

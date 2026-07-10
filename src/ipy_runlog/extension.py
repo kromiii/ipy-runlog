@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import argparse
 import re
 import shlex
 from datetime import datetime
@@ -17,7 +18,7 @@ Usage: %runlog <command> [ARGS]
 
 Commands:
   new [TITLE] [OPTIONS]  Close current log and start a new one.
-  title TITLE            Update the title and rename the log file.
+  set [OPTIONS]          Update configuration options for the current log.
   stop                   Stop recording manually.
   status                 Show current recording status.
   help                   Show this help message.
@@ -44,6 +45,16 @@ Options:
   -d PATH    Output directory (default: .ipy_runlog/)
   -h, --help Show this help message"""
 
+_SET_HELP = """\
+Usage: %runlog set [OPTIONS]
+
+Update configuration options in the current log frontmatter.
+
+Options:
+  --title TITLE    Update the title and rename the log file.
+  --author AUTHOR  Update the author name.
+  -h, --help       Show this help message"""
+
 
 @magics_class
 class RunLogMagics(Magics):
@@ -56,22 +67,23 @@ class RunLogMagics(Magics):
 
     @line_magic
     def runlog(self, line: str = "") -> None:
-        try:
-            args = shlex.split(line)
-        except ValueError as exc:
-            print(f"runlog: {exc}")
-            return
-
-        if not args or args[0] in ("-h", "--help", "help"):
+        stripped = line.strip()
+        if not stripped:
             print(_HELP)
             return
 
-        command, rest = args[0], " ".join(args[1:])
+        parts = stripped.split(None, 1)
+        command = parts[0]
+        rest = parts[1] if len(parts) > 1 else ""
+
+        if command in ("-h", "--help", "help"):
+            print(_HELP)
+            return
 
         if command == "new":
             self._runlog_new(rest)
-        elif command == "title":
-            self._runlog_title(rest)
+        elif command == "set":
+            self._runlog_set(rest)
         elif command == "stop":
             self._runlog_stop()
         elif command == "status":
@@ -110,31 +122,44 @@ class RunLogMagics(Magics):
         state["logger"] = logger
         print(f"runlog started: {output_path}")
 
-    def _runlog_title(self, line: str = "") -> None:
-        try:
-            args = shlex.split(line)
-        except ValueError as exc:
-            print(f"runlog title: {exc}")
+    def _runlog_set(self, line: str = "") -> None:
+        if _help_requested(line):
+            print(_SET_HELP)
             return
 
-        if not args:
-            print("runlog title: a title is required")
-            return
-
-        title = " ".join(args)
         state = self._state()
         logger: RunLogger | None = state.get("logger")
         if not logger or not logger.active:
             print("runlog is not running")
             return
 
-        old_path = logger.output_path
-        new_name = _title_to_filename(title)
-        logger.rename(new_name)
-        logger.set_title(title)
-        print(
-            f"runlog title set: {title} (renamed: {old_path.name} -> {logger.output_path.name})"
-        )
+        try:
+            options = _parse_set_args(line)
+        except ValueError as exc:
+            if str(exc) == "show_help":
+                print(_SET_HELP)
+            else:
+                print(f"runlog set: {exc}")
+            return
+
+        if not options:
+            print("runlog set: at least one option must be specified")
+            return
+
+        if "title" in options:
+            title = options["title"]
+            old_path = logger.output_path
+            new_name = _title_to_filename(title)
+            logger.rename(new_name)
+            logger.set_title(title)
+            print(
+                f"runlog title set: {title} (renamed: {old_path.name} -> {logger.output_path.name})"
+            )
+
+        if "author" in options:
+            author = options["author"]
+            logger.set_author(author)
+            print(f"runlog author set: {author}")
 
     def _runlog_stop(self) -> None:
         state = self._state()
@@ -238,3 +263,39 @@ def _resolve_output_path(title: str | None, directory: str | None = None) -> Pat
         Path(directory).expanduser() if directory else Path.cwd() / ".ipy_runlog"
     )
     return output_directory / filename
+
+
+class RunlogArgumentParser(argparse.ArgumentParser):
+    def exit(self, status=0, message=None):
+        if message:
+            raise ValueError(message.strip())
+        raise ValueError(f"Exited with status {status}")
+
+    def error(self, message):
+        raise ValueError(message)
+
+
+def _parse_set_args(line: str) -> dict[str, str]:
+    try:
+        args = shlex.split(line)
+    except ValueError as exc:
+        raise ValueError(str(exc)) from exc
+
+    parser = RunlogArgumentParser(prog="%runlog set", add_help=False)
+    parser.add_argument("--title", type=str)
+    parser.add_argument("--author", type=str)
+
+    # Check for help
+    if any(arg in ("-h", "--help") for arg in args):
+        raise ValueError("show_help")
+
+    parsed, unknown = parser.parse_known_args(args)
+    if unknown:
+        raise ValueError(f"unknown option: {unknown[0]}")
+
+    result = {}
+    if parsed.title is not None:
+        result["title"] = parsed.title
+    if parsed.author is not None:
+        result["author"] = parsed.author
+    return result
