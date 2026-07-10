@@ -81,6 +81,9 @@ class RunLogger:
     def _on_post_run_cell(self, result: Any) -> None:
         if self._last_started_dt is None:
             return
+        if _is_runlog_command(self._last_code):
+            self._last_started_dt = None
+            return
         self._cell_count += 1
         started_dt = self._last_started_dt
         started_at = self._last_started_at or started_dt.isoformat(
@@ -157,3 +160,12 @@ def _update_frontmatter(path: Path, key: str, value: str) -> None:
 
     new_content = "---\n" + "\n".join(new_lines) + "\n---\n" + rest
     path.write_text(new_content, encoding="utf-8")
+
+
+def _is_runlog_command(code: str) -> bool:
+    """Return True if the code contains a %runlog command line magic."""
+    for line in code.splitlines():
+        parts = line.split()
+        if parts and parts[0] == "%runlog":
+            return True
+    return False

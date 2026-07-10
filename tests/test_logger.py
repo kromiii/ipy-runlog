@@ -156,6 +156,80 @@ def test_cell_event_no_stderr_block_on_success(tmp_path) -> None:
     assert "```stderr" not in content
 
 
+def test_cell_event_ignores_runlog_commands(tmp_path) -> None:
+    output_path = tmp_path / "run.qmd"
+    logger = RunLogger(None, output_path)
+    initial_content = '---\ntitle: "t"\ndate: now\n---\n\n'
+    output_path.write_text(initial_content, encoding="utf-8")
+
+    # Test exact command
+    logger._on_pre_run_cell(SimpleNamespace(raw_cell="%runlog status"))
+    logger._on_post_run_cell(
+        SimpleNamespace(
+            execution_count=1,
+            result=None,
+            error_in_exec=None,
+            error_before_exec=None,
+        )
+    )
+    assert _read_qmd(output_path) == initial_content
+
+    # Test command with leading whitespace
+    logger._on_pre_run_cell(SimpleNamespace(raw_cell="   %runlog new 'my log'"))
+    logger._on_post_run_cell(
+        SimpleNamespace(
+            execution_count=2,
+            result=None,
+            error_in_exec=None,
+            error_before_exec=None,
+        )
+    )
+    assert _read_qmd(output_path) == initial_content
+
+    # Test command as part of a multi-line cell
+    logger._on_pre_run_cell(SimpleNamespace(raw_cell="print('hello')\n%runlog stop"))
+    logger._on_post_run_cell(
+        SimpleNamespace(
+            execution_count=3,
+            result=None,
+            error_in_exec=None,
+            error_before_exec=None,
+        )
+    )
+    assert _read_qmd(output_path) == initial_content
+
+
+def test_cell_event_does_not_ignore_runlog_substrings(tmp_path) -> None:
+    output_path = tmp_path / "run.qmd"
+    logger = RunLogger(None, output_path)
+    initial_content = '---\ntitle: "t"\ndate: now\n---\n\n'
+    output_path.write_text(initial_content, encoding="utf-8")
+
+    # A comment about %runlog should not be ignored since it starts with '#'
+    logger._on_pre_run_cell(SimpleNamespace(raw_cell="# %runlog status"))
+    logger._on_post_run_cell(
+        SimpleNamespace(
+            execution_count=1,
+            result=None,
+            error_in_exec=None,
+            error_before_exec=None,
+        )
+    )
+    assert "# %runlog status" in _read_qmd(output_path)
+
+    # A regular python identifier/comment containing runlog should not be ignored
+    logger._on_pre_run_cell(SimpleNamespace(raw_cell="runlog_var = 42"))
+    logger._on_post_run_cell(
+        SimpleNamespace(
+            execution_count=2,
+            result=None,
+            error_in_exec=None,
+            error_before_exec=None,
+        )
+    )
+    assert "runlog_var = 42" in _read_qmd(output_path)
+
+
 # ---------------------------------------------------------------------------
 # set_title
 # ---------------------------------------------------------------------------
